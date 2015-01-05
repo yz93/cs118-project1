@@ -8,7 +8,7 @@ APPNAME = 'SimpleBT'
 
 def options(opt):
     opt.load(['compiler_c', 'compiler_cxx', 'gnu_dirs'])
-    opt.load(['boost', 'default-compiler-flags'], tooldir=['.waf-tools'])
+    opt.load(['boost', 'default-compiler-flags', 'cryptopp', 'type_traits'], tooldir=['.waf-tools'])
 
     syncopt = opt.add_option_group ("SimpleBT Options")
 
@@ -18,12 +18,21 @@ def options(opt):
                        help='''build unit tests''')
 
 def configure(conf):
-    conf.load(['compiler_c', 'compiler_cxx', 'gnu_dirs', 'boost', 'default-compiler-flags'])
+    conf.load(['compiler_c', 'compiler_cxx', 'gnu_dirs',
+               'boost', 'default-compiler-flags', 'cryptopp', 'type_traits'])
+
+    conf.check(header_name='string.h')
+    conf.check(function_name='memmem', header_name='string.h', mandatory=False)
+    conf.check(function_name='stpncpy', header_name='string.h', mandatory=False)
+
+    conf.check_cxx(lib='pthread', uselib_store='PTHREAD', define_name='HAVE_PTHREAD',
+                   mandatory=False)
+    conf.check_cryptopp(mandatory=True, use='PTHREAD')
 
     boost_libs = 'system iostreams'
     if conf.options._tests:
-        conf.env['_TESTS'] = 1
-        conf.define('_TESTS', 1);
+        conf.env['HAVE_TESTS'] = 1
+        conf.define('HAVE_TESTS', 1);
         boost_libs += ' unit_test_framework'
 
     conf.check_boost(lib=boost_libs)
@@ -35,13 +44,13 @@ def build(bld):
         target="SimpleBT",
         features=['cxx', 'cxxshlib'],
         source =  bld.path.ant_glob(['src/**/*.cpp']),
-        use = 'BOOST',
+        use = ['BOOST', 'CRYPTOPP'],
         includes = ['src', '.'],
         export_includes=['src', '.'],
         )
 
     # Unit tests
-    if bld.env["_TESTS"]:
+    if bld.env["HAVE_TESTS"]:
         bld.recurse('tests')
 
     bld(

@@ -16,21 +16,37 @@
  * You should have received a copy of the GNU General Public License along with
  * NSL, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \author Yingdi Yu <yingdi@cs.ucla.edu>
+ * \author Alex Afanasyev <alexander.afanasyev@ucla.edu>
  */
 
 
-#ifndef SBT_TESTS_BOOST_TEST_HPP
-#define SBT_TESTS_BOOST_TEST_HPP
+#include "buffer.hpp"
 
-#include <iostream>
+namespace sbt {
 
-// suppress warnings from Boost.Test
-#pragma GCC system_header
-#pragma clang system_header
+#if HAVE_IS_MOVE_CONSTRUCTIBLE
+static_assert(std::is_move_constructible<Buffer>::value,
+              "Buffer must be MoveConstructible");
+#endif // HAVE_IS_MOVE_CONSTRUCTIBLE
 
-#include <boost/test/unit_test.hpp>
-#include <boost/concept_check.hpp>
-#include <boost/test/output_test_stream.hpp>
+#if HAVE_IS_MOVE_ASSIGNABLE
+static_assert(std::is_move_assignable<Buffer>::value,
+              "Buffer must be MoveAssignable");
+#endif // HAVE_IS_MOVE_ASSIGNABLE
 
-#endif // SBT_TESTS_BOOST_TEST_HPP
+Buffer::Buffer()
+{
+}
+
+Buffer::Buffer(size_t size)
+  : std::vector<uint8_t>(size, 0)
+{
+}
+
+Buffer::Buffer(const void* buf, size_t length)
+  : std::vector<uint8_t>(reinterpret_cast<const uint8_t*>(buf),
+                         reinterpret_cast<const uint8_t*>(buf) + length)
+{
+}
+
+} // namespace sbt

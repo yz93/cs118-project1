@@ -28,6 +28,8 @@
 #include <list>
 #include <map>
 
+#include "buffer.hpp"
+
 namespace sbt {
 namespace bencoding {
 

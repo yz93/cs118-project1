@@ -19,7 +19,7 @@
  * \author Yingdi Yu <yingdi@cs.ucla.edu>
  */
 
-#include "bencoding.hpp"
+#include "util/bencoding.hpp"
 #include <sstream>
 
 #include "boost-test.hpp"
