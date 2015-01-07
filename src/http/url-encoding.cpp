@@ -20,6 +20,7 @@
  */
 
 #include "url-encoding.hpp"
+#include "../util/buffer-stream.hpp"
 #include <sstream>
 
 namespace sbt {
@@ -42,10 +43,19 @@ const bool NO_ESCAPE[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xC0 - 0xCF
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xD0 - 0xDF
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xE0 - 0xEF
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xF0 - 0xFF
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 0xF0 - 0xFF
 };
 
 const char HEX[] = "0123456789ABCDEF";
+
+const uint8_t DEC[] = {
+//0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x00 - 0x0F
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x10 - 0x1F
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x20 - 0x2F
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, // 0x30 - 0x3F
+  0, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0  // 0x40 - 0x4F
+};
 
 std::string
 encode(const uint8_t* buf, size_t size)
@@ -60,6 +70,32 @@ encode(const uint8_t* buf, size_t size)
   }
 
   return ss.str();
+}
+
+ConstBufferPtr
+decode(const std::string& input)
+{
+  OBufferStream os;
+
+  auto it = input.begin();
+  while (it != input.end()) {
+    if (*it == '%') {
+      uint8_t c = 0;
+      it++;
+      c |= (DEC[(size_t)*it] << 4);
+      it++;
+      c |= DEC[(size_t)*it];
+
+      os.put(c);
+    }
+    else {
+      os.put(*it);
+    }
+
+    it++;
+  }
+
+  return os.buf();
 }
 
 } // namespace url

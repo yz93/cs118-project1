@@ -23,6 +23,7 @@
 #define SBT_HTTP_URL_ENCODING_HPP
 
 #include "../common.hpp"
+#include "../util/buffer.hpp"
 #include <string>
 
 namespace sbt {
@@ -30,6 +31,9 @@ namespace url {
 
 std::string
 encode(const uint8_t* buf, size_t size);
+
+ConstBufferPtr
+decode(const std::string& input);
 
 } // namespace url
 } // namespace sbt

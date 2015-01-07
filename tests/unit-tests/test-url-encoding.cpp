@@ -33,14 +33,30 @@ BOOST_AUTO_TEST_CASE(Basic)
   uint8_t input1[] = {0x01, 0x2C, 0x2D, 0x2E, 0x2F};
   BOOST_CHECK_EQUAL(url::encode(input1, 5), "%01%2C-.%2F");
 
+  auto output1 = url::decode("%01%2C-.%2F");
+  BOOST_REQUIRE_EQUAL_COLLECTIONS(output1->begin(), output1->end(),
+                                  input1, input1 + sizeof(input1));
+
   uint8_t input2[] = {0x30, 0x39, 0x3A, 0x40, 0x41};
   BOOST_CHECK_EQUAL(url::encode(input2, 5), "09%3A%40A");
+
+  auto output2 = url::decode("09%3A%40A");
+  BOOST_REQUIRE_EQUAL_COLLECTIONS(output2->begin(), output2->end(),
+                                  input2, input2 + sizeof(input2));
 
   uint8_t input3[] = {0x5A, 0x5B, 0x5E, 0x5F, 0x60, 0x61};
   BOOST_CHECK_EQUAL(url::encode(input3, 6), "Z%5B%5E_%60a");
 
+  auto output3 = url::decode("Z%5B%5E_%60a");
+  BOOST_REQUIRE_EQUAL_COLLECTIONS(output3->begin(), output3->end(),
+                                  input3, input3 + sizeof(input3));
+
   uint8_t input4[] = {0x7A, 0x7B, 0x7D, 0x7E, 0x7F};
   BOOST_CHECK_EQUAL(url::encode(input4, 5), "z%7B%7D~%7F");
+
+  auto output4 = url::decode("z%7B%7D~%7F");
+  BOOST_REQUIRE_EQUAL_COLLECTIONS(output4->begin(), output4->end(),
+                                  input4, input4 + sizeof(input4));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
