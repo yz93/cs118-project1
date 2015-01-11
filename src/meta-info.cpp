@@ -83,6 +83,27 @@ MetaInfo::MetaInfo()
 }
 
 void
+MetaInfo::wireEncode(std::ostream& os) const
+{
+  m_root.wireEncode(os);
+}
+
+void
+MetaInfo::wireDecode(std::istream& is)
+{
+  m_root = bencoding::Dictionary();
+  m_root.wireDecode(is);
+
+  if (static_cast<bool>(m_root.get(INFO))) {
+    m_info = dynamic_pointer_cast<bencoding::Dictionary>(m_root.get(INFO));
+  }
+  else {
+    m_root = bencoding::Dictionary();
+    throw bencoding::Error("no info in meta-info");
+  }
+}
+
+void
 MetaInfo::setAnnounce(const std::string& announce)
 {
   m_root.insert(ANNOUNCE, make_shared<bencoding::String>(announce));

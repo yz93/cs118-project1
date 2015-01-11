@@ -29,7 +29,7 @@ def configure(conf):
                    mandatory=False)
     conf.check_cryptopp(mandatory=True, use='PTHREAD')
 
-    boost_libs = 'system iostreams'
+    boost_libs = 'system iostreams filesystem'
     if conf.options._tests:
         conf.env['HAVE_TESTS'] = 1
         conf.define('HAVE_TESTS', 1);

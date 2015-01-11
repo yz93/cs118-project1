@@ -57,6 +57,12 @@ public:
   MetaInfo();
 
   void
+  wireEncode(std::ostream& os) const;
+
+  void
+  wireDecode(std::istream& is);
+
+  void
   setAnnounce(const std::string& announce);
 
   std::string
