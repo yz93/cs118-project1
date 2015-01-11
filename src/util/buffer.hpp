@@ -123,6 +123,9 @@ public:
   {
     return reinterpret_cast<const T*>(&front());
   }
+
+  void
+  print(std::ostream& os) const;
 };
 
 } // namespace sbt

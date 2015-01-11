@@ -16,46 +16,33 @@
  * You should have received a copy of the GNU General Public License along with
  * NSL, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \author Alex Afanasyev <alexander.afanasyev@ucla.edu>
+ * \author Yingdi Yu <yingdi@cs.ucla.edu>
  */
 
+#include "util/buffer.hpp"
+#include <sstream>
 
-#include "buffer.hpp"
-#include "cryptopp.hpp"
+#include "boost-test.hpp"
 
 namespace sbt {
+namespace util {
+namespace test {
 
-#if HAVE_IS_MOVE_CONSTRUCTIBLE
-static_assert(std::is_move_constructible<Buffer>::value,
-              "Buffer must be MoveConstructible");
-#endif // HAVE_IS_MOVE_CONSTRUCTIBLE
+BOOST_AUTO_TEST_SUITE(TestBuffer)
 
-#if HAVE_IS_MOVE_ASSIGNABLE
-static_assert(std::is_move_assignable<Buffer>::value,
-              "Buffer must be MoveAssignable");
-#endif // HAVE_IS_MOVE_ASSIGNABLE
-
-Buffer::Buffer()
+BOOST_AUTO_TEST_CASE(Print)
 {
+  uint8_t hash[] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+  Buffer buffer(hash, sizeof(hash));
+
+  std::stringstream ss;
+  buffer.print(ss);
+
+  BOOST_CHECK_EQUAL("0123456789abcdef", ss.str());
 }
 
-Buffer::Buffer(size_t size)
-  : std::vector<uint8_t>(size, 0)
-{
-}
+BOOST_AUTO_TEST_SUITE_END()
 
-Buffer::Buffer(const void* buf, size_t length)
-  : std::vector<uint8_t>(reinterpret_cast<const uint8_t*>(buf),
-                         reinterpret_cast<const uint8_t*>(buf) + length)
-{
-}
-
-void
-Buffer::print(std::ostream& os) const
-{
-  using namespace CryptoPP;
-
-  StringSource(&front(), size(), true, new HexEncoder(new FileSink(os), false));
-}
-
+} // namespace test
+} // namespace util
 } // namespace sbt
