@@ -45,6 +45,11 @@ BOOST_AUTO_TEST_CASE(Basic)
   std::vector<uint8_t> result2 = sha1(input2);
   BOOST_REQUIRE_EQUAL_COLLECTIONS(hash, hash + sizeof(hash),
                                   result2.begin(), result2.end());
+
+  auto input3 = make_shared<Buffer>(&input2.front(), input.size());
+  ConstBufferPtr result3 = sha1(input3);
+  BOOST_REQUIRE_EQUAL_COLLECTIONS(hash, hash + sizeof(hash),
+                                  result3->begin(), result3->end());
 }
 
 BOOST_AUTO_TEST_CASE(Tmp)

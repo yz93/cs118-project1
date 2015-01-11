@@ -21,6 +21,7 @@
 
 #include "meta-info.hpp"
 #include "util/buffer-stream.hpp"
+#include "util/hash.hpp"
 
 using std::string;
 using std::make_shared;
@@ -233,7 +234,7 @@ MetaInfo::getHash()
 
   m_info->wireEncode(os);
 
-  return os.buf();
+  return util::sha1(os.buf());
 }
 
 } // namespace sbt

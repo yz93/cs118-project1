@@ -23,6 +23,7 @@
 #define SBT_UTIL_HASH_HPP
 
 #include "cryptopp.hpp"
+#include "buffer.hpp"
 
 namespace sbt {
 namespace util {
@@ -32,6 +33,9 @@ sha1(const std::string& input);
 
 std::vector<uint8_t>
 sha1(const std::vector<uint8_t>& input);
+
+ConstBufferPtr
+sha1(ConstBufferPtr input);
 
 } // namespace util
 } // namespace sbt

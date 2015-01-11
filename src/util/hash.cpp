@@ -48,7 +48,22 @@ sha1(const std::vector<uint8_t>& input)
   std::vector<uint8_t> result(20, 0);
   SHA1 hash;
 
-  StringSource(&input.front(), input.size(), true, new HashFilter(hash, new ArraySink(&result.front(), 20)));
+  StringSource(&input.front(), input.size(),
+               true, new HashFilter(hash, new ArraySink(&result.front(), 20)));
+
+  return result;
+}
+
+ConstBufferPtr
+sha1(ConstBufferPtr input)
+{
+  using namespace CryptoPP;
+
+  auto result = make_shared<Buffer>(20, 0);
+  SHA1 hash;
+
+  StringSource(input->buf(), input->size(),
+               true, new HashFilter(hash, new ArraySink(result->buf(), 20)));
 
   return result;
 }
