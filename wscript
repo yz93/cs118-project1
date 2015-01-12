@@ -42,7 +42,7 @@ def configure(conf):
 def build(bld):
     libsbt = bld(
         target="SimpleBT",
-        features=['cxx', 'cxxshlib'],
+        features=['cxx', 'cxxstlib'],
         source =  bld.path.ant_glob(['src/**/*.cpp']),
         use = ['BOOST', 'CRYPTOPP'],
         includes = ['src', '.'],

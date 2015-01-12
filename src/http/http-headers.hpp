@@ -23,6 +23,7 @@
 #ifndef SBT_HTTP_HEADER_HPP
 #define SBT_HTTP_HEADER_HPP
 
+#include "../common.hpp"
 #include <string>
 #include <list>
 
@@ -128,4 +129,4 @@ private:
 
 } // namespace sbt
 
-#endif // SBT_HTTP_HEADERS_HPP
+#endif // SBT_HTTP_HEADER_HPP

@@ -21,6 +21,7 @@
 
 #include "msg-base.hpp"
 #include "../util/buffer-stream.hpp"
+#include <arpa/inet.h>
 
 namespace sbt {
 namespace msg {
