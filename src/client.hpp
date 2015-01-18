@@ -29,7 +29,7 @@ namespace sbt {
 class Client
 {
 public:
-  Client(const std::string& torrent)
+  Client(const std::string& port, const std::string& torrent)
   {
   }
 };
