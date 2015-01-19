@@ -2,7 +2,7 @@
 
 echo "Run 7 test cases..."
 
-./tools/sbt-tracker tests/test-torrent/test.torrent &
+./tools/sbt-tracker 60207 tests/test-torrent/test.torrent &
 
 sleep 1
 
