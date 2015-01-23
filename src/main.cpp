@@ -21,6 +21,7 @@
 
 #include "client.hpp"
 #include "meta-info.hpp"
+#include "http/url-encoding.hpp"
 #include <cstdio>  // sscanf
 #include <string>
 #include <iostream>
@@ -47,7 +48,11 @@ main(int argc, char** argv)
 	m_metaInfo.wireDecode(torrentFile);  // decode (parse) torrent file
 
 	std::string announce = m_metaInfo.getAnnounce();  // get tracker information
-	std::cout <<"This is announce"<< announce << std::endl;
+	sbt::ConstBufferPtr cbp = m_metaInfo.getHash();  // getHash to see what it is.
+	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(*cbp));
+
+	std::cout <<"This is announce: "<< announce << std::endl;
+	std::cout << "This info_hash: " << info_hash << std::endl;
 
   }
   catch (std::exception& e)
