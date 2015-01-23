@@ -24,8 +24,10 @@
 #include "http/url-encoding.hpp"
 #include <cstdio>  // sscanf
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <fstream>
+using namespace std;
 
 int
 main(int argc, char** argv)
@@ -49,10 +51,21 @@ main(int argc, char** argv)
 
 	std::string announce = m_metaInfo.getAnnounce();  // get tracker information
 	sbt::ConstBufferPtr cbp = m_metaInfo.getHash();  // getHash to see what it is.
-	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(cbp));
+	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(*cbp));  // sizeof(cbp) or sizeof(*cbp)?
 
-	std::cout <<"This is announce: "<< announce << std::endl;
-	std::cout << "This info_hash: " << info_hash << std::endl;
+	//string s = "http://localhost:12345/announce.php";
+	stringstream ss(announce);
+	string hostName, portNum, path;
+	getline(ss, hostName, '/');
+	getline(ss, hostName, '/');
+	getline(ss, hostName, ':');
+	getline(ss, portNum, '/');
+	getline(ss, path);
+	cout << "Host is: " << hostName << endl;
+	cout << "portNum is: " << portNum << endl;
+	cout << "Path is: " << path << endl;
+	/*std::cout <<"This is announce: "<< announce << std::endl;
+	std::cout << "This info_hash: " << info_hash << std::endl;*/
 
   }
   catch (std::exception& e)
