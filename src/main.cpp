@@ -49,7 +49,7 @@ main(int argc, char** argv)
 
 	std::string announce = m_metaInfo.getAnnounce();  // get tracker information
 	sbt::ConstBufferPtr cbp = m_metaInfo.getHash();  // getHash to see what it is.
-	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(*cbp));
+	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(cbp));
 
 	std::cout <<"This is announce: "<< announce << std::endl;
 	std::cout << "This info_hash: " << info_hash << std::endl;
