@@ -23,15 +23,20 @@
 #define SBT_CLIENT_HPP
 
 #include "common.hpp"
+#include "meta-info.hpp"
 
 namespace sbt {
-
+	
 class Client
 {
 public:
   Client(const std::string& port, const std::string& torrent)
   {
   }
+private:
+	/*MetaInfo m_metaInfo;
+	std::string m_port;
+	std::string m_torrent;*/
 };
 
 } // namespace sbt

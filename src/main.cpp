@@ -20,6 +20,11 @@
  */
 
 #include "client.hpp"
+#include "meta-info.hpp"
+#include <cstdio>  // sscanf
+#include <string>
+#include <iostream>
+#include <fstream>
 
 int
 main(int argc, char** argv)
@@ -35,6 +40,15 @@ main(int argc, char** argv)
 
     // Initialise the client.
     sbt::Client client(argv[1], argv[2]);
+	// argv[1] is port number string; argv[2] is torrent path string.
+
+	sbt::MetaInfo m_metaInfo;
+	std::ifstream torrentFile(argv[2]);  // open torrent file
+	m_metaInfo.wireDecode(torrentFile);  // decode (parse) torrent file
+
+	std::string announce = m_metaInfo.getAnnounce();  // get tracker information
+	std::cout <<"This is announce"<< announce << std::endl;
+
   }
   catch (std::exception& e)
   {
