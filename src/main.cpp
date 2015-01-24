@@ -226,7 +226,7 @@ main(int argc, char** argv)
 
 	if (countRes == 1)
 	{
-		vector<sbt::PeerInfo> vec = tr.getPeers;
+		vector<sbt::PeerInfo> vec = tr.getPeers();
 		for (auto i : vec)
 			cout << i.ip << ":" << i.port << endl;
 	}
