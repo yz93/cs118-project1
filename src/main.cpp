@@ -181,13 +181,11 @@ main(int argc, char** argv)
 
 	++count;  // increment count of requests sent
 	
-	
-	
-	char responseBuff[2048] = { 0 };
+	char responseBuff[1024] = { 0 };
 
 	//memset(buff, '\0', sizeof(buff));
 
-	if (recv(sockfd, responseBuff, 2048, 0) == -1) {
+	if (recv(sockfd, responseBuff, 1024, 0) == -1) {
 		perror("recv");
 		return 5;
 	}
@@ -197,12 +195,17 @@ main(int argc, char** argv)
 	ssss << responseBuff;
 	string temp = ssss.str();
 	string delim2 = ""; delim2 += '\r'; delim2 += '\n'; delim2 += '\r'; delim2 += '\n';
-	string beforeBody = temp.substr(0,temp.find(delim2));
-
+	//string beforeBody = temp.substr(0,temp.find(delim2));
+	int index = temp.find(delim2);
+	if (index == std::string::npos)
+	{
+		perror("no \r\n\r\n");
+		return 666;
+	}
 	//string delim1 = "Content-Length:";
 	
 	string sizeOfBody = "";  // = temp.substr(temp.find(delim1) + 15, temp.find(delim2));
-	const char * cPtr = (const char*)memmem(responseBuff, 2048, "Content-Length:", 15);
+	const char * cPtr = (const char*)memmem(responseBuff, 1024, "Content-Length:", 15);
 	// assume cPtr will never be NULL
 	cPtr += 15;  // now cPtr points to the first char of number
 	while (*cPtr != '\r'&& *(cPtr + 1) != '\n')
@@ -212,7 +215,8 @@ main(int argc, char** argv)
 	iiss >> sizeOfBodyNum;  // convert body size to int type
 	
 	sbt::HttpResponse httpResponse;
-	const char* startOfBody = httpResponse.parseResponse(responseBuff, beforeBody.size());
+	httpResponse.parseResponse(responseBuff, index+4);
+	const char* startOfBody = responseBuff + index + 4;  // index is the location of first '\r' in '\r''\n''\r''\n'
 
 	string message_body = "";
 	for (int i = 0; i < sizeOfBodyNum; i++)
@@ -228,7 +232,7 @@ main(int argc, char** argv)
 	{
 		vector<sbt::PeerInfo> vec = tr.getPeers();
 		for (auto i : vec)
-			cout << i.ip << ":" << i.port << endl;
+			std::cout << i.ip << ":" << i.port << endl;
 	}
 	/*std::string ip;
   uint16_t port;*/
