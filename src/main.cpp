@@ -77,22 +77,7 @@ main(int argc, char** argv)
 	int portNum;
 	iss >> portNum;
 
-	// generate url with GET parameters
-	string url="";
-	url = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
-		"&uploaded=0&downloaded=0&left=0&event=started";  // assume client ip is localhost; argv[1] is peer port
-
-	// generate http request with headers
-	sbt::HttpRequest req;
-	req.setHost(hostName);
-	req.setPort(portNum);
-	req.setMethod(sbt::HttpRequest::GET);
-	req.setPath(url);
-	req.setVersion("1.0");
-	req.addHeader("Accept-Language", "en-US");
-	size_t reqLen = req.getTotalLength();  // assume http request class generates correct http request message
-	char *buf = new char[reqLen];
-	req.formatRequest(buf);
+	
 	//size_t requestSize = bufLastPos - buf;  // assume the last position is always after the start of buf. And that the difference is the # of chars.
 	/*----------------------------------------*/
 	// find tracker ip from its hostname
@@ -124,19 +109,35 @@ main(int argc, char** argv)
 
 	/* repeatedly send requests until tracker shuts the connection down*/
 	
-	string url2 = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
-		"&uploaded=0&downloaded=0&left=0";  // no event, for middle requests
+	//string url2 = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
+	//	"&uploaded=0&downloaded=0&left=0";  // no event, for middle requests
 	int count = 0;  // count how many requests have been sent
 	int countRes = 0; // count responses
 	while (true) 
 	{
+		// generate url with GET parameters
+		string url = "";
 		if (count != 0)  // if not the first request
 		{
-			req.setPath(url2);
-			size_t reqLen2 = req.getTotalLength();  // assume http request class generates correct http request message
-			char *buf2 = new char[reqLen2];
-			req.formatRequest(buf2);
+			url = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
+				"&uploaded=0&downloaded=0&left=0&event=started";  // assume client ip is localhost; argv[1] is peer port
 		}
+		else
+			url = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
+			"&uploaded=0&downloaded=0&left=0";  // no event, for middle requests
+		// generate http request with headers
+		sbt::HttpRequest req;
+		req.setHost(hostName);
+		req.setPort(portNum);
+		req.setMethod(sbt::HttpRequest::GET);
+		req.setPath(url);
+		req.setVersion("1.0");
+		req.addHeader("Accept-Language", "en-US");
+		size_t reqLen = req.getTotalLength();  // assume http request class generates correct http request message
+		char *buf = new char[reqLen];
+		req.formatRequest(buf);
+	
+
 	// create a socket using TCP IP
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -247,7 +248,6 @@ main(int argc, char** argv)
 	}  // end while
 
 	delete[] buf;
-	delete[] buf2;
 	
 	/*cout << "Host is: " << hostName << endl;
 	cout << "portNum is: " << portNum << endl;
