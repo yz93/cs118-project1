@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <unistd.h>
@@ -94,11 +95,6 @@ main(int argc, char** argv)
 	struct addrinfo hints;
 	struct addrinfo* res;
 
-	/*if (argc != 2) {
-		std::cerr << "usage: showip hostname" << std::endl;
-		return 1;
-	}*/
-
 	// prepare hints
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; // IPv4
@@ -147,8 +143,10 @@ main(int argc, char** argv)
 
 	struct sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
+
 	serverAddr.sin_port = htons(portNum);     // short, network byte order
 	serverAddr.sin_addr.s_addr = inet_addr(ipstr);  // input should be c_str
+
 	memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
 
 	// connect to the server
