@@ -88,7 +88,7 @@ main(int argc, char** argv)
 	req.addHeader("Accept-Language", "en-US");
 	size_t reqLen = req.getTotalLength();  // assume http request class generates correct http request message
 	char *buf = new char[reqLen];
-	char* bufLastPos = req.formatRequest(buf);
+	req.formatRequest(buf);
 	//size_t requestSize = bufLastPos - buf;  // assume the last position is always after the start of buf. And that the difference is the # of chars.
 	/*----------------------------------------*/
 	// find tracker ip from its hostname
@@ -169,7 +169,7 @@ main(int argc, char** argv)
 
 
 	// send/receive data to/from connection
-	bool isEnd = false;
+	//bool isEnd = false;
 	std::string input;
 	char buff[40] = { 0 };  // buff is used to store response (http or tracker?) how big should it be?
 	std::stringstream sss;
@@ -191,8 +191,8 @@ main(int argc, char** argv)
 		}
 		sss << buff << std::endl;
 
-		if (sss.str() == "close\n")
-			break;
+		//if (sss.str() == "close\n")
+			//break;
 
 		sss.str("");
 	//}
