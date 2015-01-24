@@ -21,6 +21,10 @@
 
 #include "client.hpp"
 #include "http/http-request.hpp"
+#include "http/http-response.hpp"
+#include "util/bencoding.hpp"
+#include "tracker-response.hpp"
+#include <string.h>
 #include "meta-info.hpp"
 #include "http/url-encoding.hpp"
 #include <cstdio>  // sscanf
@@ -108,17 +112,7 @@ main(int argc, char** argv)
 	}
 	// how to get tracker ip? why is there a for loop?
 	// because one hostname links to multiple ips. Choose anyone should work.
-	//for (struct addrinfo* p = res; p != 0; p = p->ai_next) {
-	//	// convert address to IPv4 address
-	//	struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
 
-	//	// convert the IP to a string and print it:
-	//	char ipstr[INET_ADDRSTRLEN] = { '\0' };
-	//	inet_ntop(p->ai_family, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
-
-	//	// std::cout << "  " << ipstr << std::endl;
-	//	//std::cout << "  " << ipstr << ":" << ntohs(ipv4->sin_port) << std::endl;
-	//}
 	struct addrinfo* p = res;
 	struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
 	char ipstr[INET_ADDRSTRLEN] = { '\0' };
@@ -126,8 +120,22 @@ main(int argc, char** argv)
 	// always use the first ip address. ipstr now has the ip of the tracker, in c string format.
 
 	freeaddrinfo(res); // free the linked list
+	
 
-
+	/* repeatedly send requests until tracker shuts the connection down*/
+	
+	string url2 = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
+		"&uploaded=0&downloaded=0&left=0";  // no event, for middle requests
+	int count = 0;  // count how many requests have been sent
+	int countRes = 0; // count responses
+	while (true) 
+	{
+		if (count != 0)  // if not the first request
+		{
+			req.setPath(url2);
+			memset(buf, 0, reqLen);
+			req.formatRequest(buf);
+		}
 	// create a socket using TCP IP
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -154,51 +162,85 @@ main(int argc, char** argv)
 		perror("connect");
 		return 2;
 	}
+	/*THIS IS THE SHIT: CONNECT!*/
 
+	// don't know why this is needed. Maybe can get client's ip and port. But do not need this anymore
 	struct sockaddr_in clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 	if (getsockname(sockfd, (struct sockaddr *)&clientAddr, &clientAddrLen) == -1) {
 		perror("getsockname");
 		return 3;
 	}
+	//------------------------------------//
 
-	//char ipstr[INET_ADDRSTRLEN] = { '\0' };
-	//inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
-	//std::cout << "Set up a connection from: " << ipstr << ":" <<
-	//ntohs(clientAddr.sin_port) << std::endl;
+	// buf has the http request
+	if (send(sockfd, buf, reqLen, 0) == -1) {
+		perror("send");
+		return 4;
+	}
 
+	++count;  // increment count of requests sent
+	
+	
+	
+	char responseBuff[2048] = { 0 };
 
-	// send/receive data to/from connection
-	//bool isEnd = false;
-	std::string input;
-	char buff[40] = { 0 };  // buff is used to store response (http or tracker?) how big should it be?
-	std::stringstream sss;
+	//memset(buff, '\0', sizeof(buff));
 
-	//while (!isEnd) {
-		memset(buff, '\0', sizeof(buff));
+	if (recv(sockfd, responseBuff, 2048, 0) == -1) {
+		perror("recv");
+		return 5;
+	}
+	countRes++;
 
-		//std::cin >> input;
-		// buf has the http request
-		if (send(sockfd, buf, reqLen, 0) == -1) {
-			perror("send");
-			return 4;
-		}
+	std::stringstream ssss;
+	ssss << responseBuff;
+	string temp = ssss.str();
+	string delim2 = ""; delim2 += '\r'; delim2 += '\n'; delim2 += '\r'; delim2 += '\n';
+	string beforeBody = temp.substr(0,temp.find(delim2));
 
+	//string delim1 = "Content-Length:";
+	
+	string sizeOfBody = "";  // = temp.substr(temp.find(delim1) + 15, temp.find(delim2));
+	const char * cPtr = (const char*)memmem(responseBuff, 2048, "Content-Length:", 15);
+	// assume cPtr will never be NULL
+	cPtr += 15;  // now cPtr points to the first char of number
+	while (*cPtr != '\r'&& *(cPtr + 1) != '\n')
+		sizeOfBody += *cPtr;
+	istringstream iiss(sizeOfBody);
+	int sizeOfBodyNum;
+	iiss >> sizeOfBodyNum;  // convert body size to int type
+	
+	sbt::HttpResponse httpResponse;
+	const char* startOfBody = httpResponse.parseResponse(responseBuff, beforeBody.size());
 
-		if (recv(sockfd, buff, 40, 0) == -1) {
-			perror("recv");
-			return 5;
-		}
-		sss << buff << std::endl;
+	string message_body = "";
+	for (int i = 0; i < sizeOfBodyNum; i++)
+		message_body += *(startOfBody+i);
 
-		//if (sss.str() == "close\n")
-			//break;
+	istringstream anotherIS(message_body);
+	sbt::bencoding::Dictionary d;
+	d.wireDecode(anotherIS);
+	sbt::TrackerResponse tr;
+	tr.decode(d);
 
-		sss.str("");
-	//}
+	if (countRes == 1)
+	{
+		vector<sbt::PeerInfo> vec = tr.getPeers;
+		for (auto i : vec)
+			cout << i.ip << ":" << i.port << endl;
+	}
+	/*std::string ip;
+  uint16_t port;*/
+
+	sleep(tr.getInterval());
+	//ssss.clear();
+	//ssss.str("");
 
 	close(sockfd);
-	
+
+	}  // end while
+
 	delete[] buf;
 	
 	/*cout << "Host is: " << hostName << endl;
