@@ -20,6 +20,7 @@
  */
 
 #include "client.hpp"
+#include "http/http-request.hpp"
 #include "meta-info.hpp"
 #include "http/url-encoding.hpp"
 #include <cstdio>  // sscanf
@@ -27,6 +28,12 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <unistd.h>
 using namespace std;
 
 int
@@ -51,19 +58,154 @@ main(int argc, char** argv)
 
 	std::string announce = m_metaInfo.getAnnounce();  // get tracker information
 	sbt::ConstBufferPtr cbp = m_metaInfo.getHash();  // getHash to see what it is.
-	std::string info_hash = sbt::url::encode(cbp->get(), sizeof(*cbp));  // sizeof(cbp) or sizeof(*cbp)?
+	std::string info_hash = sbt::url::encode(cbp->get(), cbp->size());  // sizeof(cbp) or sizeof(*cbp)?
 
 	//string s = "http://localhost:12345/announce.php";
 	stringstream ss(announce);
-	string hostName, portNum, path;
+	string hostName, portNumStr, path;
 	getline(ss, hostName, '/');
 	getline(ss, hostName, '/');
 	getline(ss, hostName, ':');
-	getline(ss, portNum, '/');
+	getline(ss, portNumStr, '/');
 	getline(ss, path);
-	cout << "Host is: " << hostName << endl;
+	istringstream iss(portNumStr);
+	int portNum;
+	iss >> portNum;
+
+	// generate url with GET parameters
+	string url="";
+	url = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
+		"&uploaded=0&downloaded=0&left=0&event=started";  // assume client ip is localhost; argv[1] is peer port
+
+	// generate http request with headers
+	sbt::HttpRequest req;
+	req.setHost(hostName);
+	req.setPort(portNum);
+	req.setMethod(sbt::HttpRequest::GET);
+	req.setPath(url);
+	req.setVersion("1.0");
+	req.addHeader("Accept-Language", "en-US");
+	size_t reqLen = req.getTotalLength();  // assume http request class generates correct http request message
+	char *buf = new char[reqLen];
+	char* bufLastPos = req.formatRequest(buf);
+	//size_t requestSize = bufLastPos - buf;  // assume the last position is always after the start of buf. And that the difference is the # of chars.
+	/*----------------------------------------*/
+	// find tracker ip from its hostname
+	struct addrinfo hints;
+	struct addrinfo* res;
+
+	/*if (argc != 2) {
+		std::cerr << "usage: showip hostname" << std::endl;
+		return 1;
+	}*/
+
+	// prepare hints
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET; // IPv4
+	hints.ai_socktype = SOCK_STREAM;
+
+	// get address
+	int status = 0;
+	if ((status = getaddrinfo(hostName.c_str(), portNumStr.c_str(), &hints, &res)) != 0) {
+		std::cerr << "getaddrinfo: " << gai_strerror(status) << std::endl;
+		return 2;
+	}
+	// how to get tracker ip? why is there a for loop?
+	// because one hostname links to multiple ips. Choose anyone should work.
+	//for (struct addrinfo* p = res; p != 0; p = p->ai_next) {
+	//	// convert address to IPv4 address
+	//	struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+
+	//	// convert the IP to a string and print it:
+	//	char ipstr[INET_ADDRSTRLEN] = { '\0' };
+	//	inet_ntop(p->ai_family, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
+
+	//	// std::cout << "  " << ipstr << std::endl;
+	//	//std::cout << "  " << ipstr << ":" << ntohs(ipv4->sin_port) << std::endl;
+	//}
+	struct addrinfo* p = res;
+	struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+	char ipstr[INET_ADDRSTRLEN] = { '\0' };
+	inet_ntop(p->ai_family, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
+	// always use the first ip address. ipstr now has the ip of the tracker, in c string format.
+
+	freeaddrinfo(res); // free the linked list
+
+
+	// create a socket using TCP IP
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	// struct sockaddr_in addr;
+	// addr.sin_family = AF_INET;
+	// addr.sin_port = htons(40001);     // short, network byte order
+	// addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	// memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
+	// if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+	//   perror("bind");
+	//   return 1;
+	// }
+
+	struct sockaddr_in serverAddr;
+	serverAddr.sin_family = AF_INET;
+	serverAddr.sin_port = htons(portNum);     // short, network byte order
+	serverAddr.sin_addr.s_addr = inet_addr(ipstr);  // input should be c_str
+	memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
+
+	// connect to the server
+	if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
+		perror("connect");
+		return 2;
+	}
+
+	struct sockaddr_in clientAddr;
+	socklen_t clientAddrLen = sizeof(clientAddr);
+	if (getsockname(sockfd, (struct sockaddr *)&clientAddr, &clientAddrLen) == -1) {
+		perror("getsockname");
+		return 3;
+	}
+
+	//char ipstr[INET_ADDRSTRLEN] = { '\0' };
+	//inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
+	//std::cout << "Set up a connection from: " << ipstr << ":" <<
+	//ntohs(clientAddr.sin_port) << std::endl;
+
+
+	// send/receive data to/from connection
+	bool isEnd = false;
+	std::string input;
+	char buff[40] = { 0 };  // buff is used to store response (http or tracker?) how big should it be?
+	std::stringstream sss;
+
+	//while (!isEnd) {
+		memset(buff, '\0', sizeof(buff));
+
+		//std::cin >> input;
+		// buf has the http request
+		if (send(sockfd, buf, reqLen, 0) == -1) {
+			perror("send");
+			return 4;
+		}
+
+
+		if (recv(sockfd, buff, 40, 0) == -1) {
+			perror("recv");
+			return 5;
+		}
+		sss << buff << std::endl;
+
+		if (sss.str() == "close\n")
+			break;
+
+		sss.str("");
+	//}
+
+	close(sockfd);
+	
+	delete[] buf;
+	
+	/*cout << "Host is: " << hostName << endl;
 	cout << "portNum is: " << portNum << endl;
-	cout << "Path is: " << path << endl;
+	cout << "Path is: " << path << endl;*/
 	/*std::cout <<"This is announce: "<< announce << std::endl;
 	std::cout << "This info_hash: " << info_hash << std::endl;*/
 
