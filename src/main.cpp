@@ -133,8 +133,9 @@ main(int argc, char** argv)
 		if (count != 0)  // if not the first request
 		{
 			req.setPath(url2);
-			memset(buf, 0, reqLen);
-			req.formatRequest(buf);
+			size_t reqLen2 = req.getTotalLength();  // assume http request class generates correct http request message
+			char *buf2 = new char[reqLen2];
+			req.formatRequest(buf2);
 		}
 	// create a socket using TCP IP
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -196,7 +197,7 @@ main(int argc, char** argv)
 	string temp = ssss.str();
 	string delim2 = ""; delim2 += '\r'; delim2 += '\n'; delim2 += '\r'; delim2 += '\n';
 	//string beforeBody = temp.substr(0,temp.find(delim2));
-	int index = temp.find(delim2);
+	unsigned int index = temp.find(delim2);
 	if (index == std::string::npos)
 	{
 		perror("no \r\n\r\n");
@@ -246,6 +247,7 @@ main(int argc, char** argv)
 	}  // end while
 
 	delete[] buf;
+	delete[] buf2;
 	
 	/*cout << "Host is: " << hostName << endl;
 	cout << "portNum is: " << portNum << endl;
