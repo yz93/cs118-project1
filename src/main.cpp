@@ -31,6 +31,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <fstream>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -67,16 +68,23 @@ main(int argc, char** argv)
 
 	//string s = "http://localhost:12345/announce.php";
 	stringstream ss(announce);
+	int portNum;
 	string hostName, portNumStr, path;
 	getline(ss, hostName, '/');
 	getline(ss, hostName, '/');
-	getline(ss, hostName, ':');
-	getline(ss, portNumStr, '/');
+	if (std::count(announce.begin(), announce.end(), ':') < 2)
+		{	
+			getline(ss, hostName, '/');
+			portNumStr = "80";
+		}
+	else
+		{
+			getline(ss, hostName, ':');
+			getline(ss, portNumStr, '/');
+		}
 	getline(ss, path);
 	istringstream iss(portNumStr);
-	int portNum;
 	iss >> portNum;
-
 	
 	//size_t requestSize = bufLastPos - buf;  // assume the last position is always after the start of buf. And that the difference is the # of chars.
 	/*----------------------------------------*/
@@ -117,7 +125,7 @@ main(int argc, char** argv)
 	{
 		// generate url with GET parameters
 		string url = "";
-		if (count != 0)  // if not the first request
+		if (count == 0)  // if not the first request
 		{
 			url = announce + "?info_hash=" + info_hash + "&peer_id=ABCDEFGHIJKLMNOPQRST&port=" + argv[1] +
 				"&uploaded=0&downloaded=0&left=0&event=started";  // assume client ip is localhost; argv[1] is peer port
@@ -210,8 +218,8 @@ main(int argc, char** argv)
 	const char * cPtr = (const char*)memmem(responseBuff, 1024, "Content-Length:", 15);
 	// assume cPtr will never be NULL
 	cPtr += 15;  // now cPtr points to the first char of number
-	while (*cPtr != '\r'&& *(cPtr + 1) != '\n')
-		sizeOfBody += *cPtr;
+	while (*cPtr != '\r' || *(cPtr + 1) != '\n')
+		{sizeOfBody += *cPtr;++cPtr;}
 	istringstream iiss(sizeOfBody);
 	int sizeOfBodyNum;
 	iiss >> sizeOfBodyNum;  // convert body size to int type
@@ -243,11 +251,11 @@ main(int argc, char** argv)
 	//ssss.clear();
 	//ssss.str("");
 
+	delete[] buf;
 	close(sockfd);
 
 	}  // end while
 
-	delete[] buf;
 	
 	/*cout << "Host is: " << hostName << endl;
 	cout << "portNum is: " << portNum << endl;
