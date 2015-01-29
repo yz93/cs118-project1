@@ -4,6 +4,8 @@
 
 rm -f ./text.txt
 rm -f ./tools/text.txt
+rm -f ./complete.tmp
+rm -f ./test.result
 
 cp ./tools/text.txt.bak ./text.txt
 
@@ -19,13 +21,17 @@ sleep 1
 
 ./build/simple-bt 60207 ./tools/test-2.torrent > /dev/null 2>&1 &
 
-sleep 60
+for ((x = 0; x < 30; x++)); do
+  printf %s .
+  sleep 1
+done
+echo
 
 killall sbt-tracker > /dev/null 2>&1
 
 sleep 1
 
-cmp ./text.txt ./tools/text.txt
+cmp ./text.txt ./tools/text.txt > /dev/null 2>&1
 
 if [ $? -eq 0 ] ; then
     echo "[Test case 1] Passed"
@@ -35,4 +41,5 @@ fi
 
 rm -f ./text.txt
 rm -f ./tools/text.txt
-
+rm -f ./complete.tmp
+rm -f ./test.result
