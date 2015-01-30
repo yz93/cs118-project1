@@ -108,11 +108,10 @@ void Client::connectPeers()
 void Client::sendPeerRequest()
 {
 	std::string fileName = m_metaInfo.getName();
-	fileName +="Zhao";
 	// first create a file using the file name from the meta info file
-	std::ofstream myFile("testZhao.txt",std::ios::app);
-	
-	//myFile.open(fileName.c_str());
+	std::ofstream myFile2("testZhao.txt",std::ios::app);
+	std::ofstream myFile;
+	myFile.open(fileName.c_str(), std::ios::app);
 
 	for (auto fd : m_client_socketFd)
 	{
@@ -135,9 +134,9 @@ void Client::sendPeerRequest()
 
 		msg::HandShake hsB;
 		hsB.decode(tt);
-		std::ofstream out("handshake");
-		out<<hsB.getInfoHash()->buf()<<std::endl;
-		out.close();
+		//std::ofstream out("handshake");
+		//out<<hsB.getInfoHash()->buf()<<std::endl;
+		//out.close();
 		// now calculate how many bytes are needed for the bit field
 		// send and receive bit field
 		int fileLen = m_metaInfo.getLength();
@@ -189,9 +188,10 @@ void Client::sendPeerRequest()
 
 		// now assume the peer has every single piece
 		// so I just keep sending request from 0 to the last piece
-		char* data = new char[pieceLen];
+		//char* data = new char[pieceLen];
 		for (int i = 0; i < numPieces; ++i)
 		{
+			char* data = new char[pieceLen];
 			//myFile<<std::endl<<"piece count: "<<i<<std::endl;
 			memset(data, '\0', pieceLen);
 			// send 1st request msg
@@ -206,19 +206,21 @@ void Client::sendPeerRequest()
 			piece.decode(ttttt);
 			//piece.getBlock();
 			myFile << piece.getBlock()->buf(); 
+			myFile2 << piece.getBlock()->buf();
 			
 			msg::Have haveMsg(i);
 			ConstBufferPtr whatever = haveMsg.encode();
 			send(fd, whatever->get(),whatever->size(),0);
-
+			delete[] data;
 		}
 		myFile.close();
+		myFile2.close();
 		delete[] buf2;
 		delete[] bitField;
-		delete[] data;
+		//delete[] data;
 		buf2 = nullptr;
 		bitField = nullptr;
-		data = nullptr;
+		//data = nullptr;
 	}
 	
 }
