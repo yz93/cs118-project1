@@ -191,33 +191,33 @@ void Client::sendPeerRequest()
 		//char* data = new char[pieceLen];
 		for (int i = 0; i < numPieces; ++i)
 		{
-			char* data = new char[pieceLen];
+			char* data = new char[pieceLen+512];
 			//myFile<<std::endl<<"piece count: "<<i<<std::endl;
-			myFile2<<"debugging seg fault: "<<"check 1"<<std::endl;
-			memset(data, '\0', pieceLen);
+			//myFile2<<"debugging seg fault: "<<"check 1"<<std::endl;
+			memset(data, '\0', pieceLen+512);
 			// send 1st request msg
-			myFile2<<"debugging seg fault: "<<"check 2"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 2"<<std::endl;
 			msg::Request req(i,0,pieceLen);
-			myFile2<<"debugging seg fault: "<<"check 3"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 3"<<std::endl;
 			ConstBufferPtr d = req.encode();
-			myFile2<<"debugging seg fault: "<<"check 4"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 4"<<std::endl;
 			send(fd, d->get(), d->size(), 0);
-			myFile2<<"debugging seg fault: "<<"check 5"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 5"<<std::endl;
 			sleep(1);
-			ssize_t dddd = recv(fd, data, pieceLen, 0);
+			ssize_t dddd = recv(fd, data, pieceLen+512, 0);
 			if (dddd == -1) {
 				perror("recv");
 				return;
 			}
-			myFile2<<"debugging seg fault: "<<"check 6"<<std::endl;
-			ConstBufferPtr ttttt = make_shared<const Buffer>(data, pieceLen);
-			myFile2<<"debugging seg fault: "<<"check 7"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 6"<<std::endl;
+			ConstBufferPtr ttttt = make_shared<const Buffer>(data, pieceLen+512);
+			//myFile2<<"debugging seg fault: "<<"check 7"<<std::endl;
 			msg::Piece piece;
 			piece.decode(ttttt);
 			//piece.getBlock();
-			myFile2<<"debugging seg fault: "<<"check 8"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 8"<<std::endl;
 			myFile << piece.getBlock()->buf(); 
-			myFile2<<"debugging seg fault: "<<"check 9"<<std::endl;
+			//myFile2<<"debugging seg fault: "<<"check 9"<<std::endl;
 			myFile2 << piece.getBlock()->buf();
 			
 			msg::Have haveMsg(i);
