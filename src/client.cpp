@@ -86,8 +86,8 @@ void Client::connectPeers()
 {
 	for (auto peer : m_peers)
 	{
-		int temp = socket(AF_INET, SOCK_STREAM, 0);
-		m_client_socketFd.push_back(temp);
+		int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		m_client_socketFd.push_back(sockfd);
 
 		struct sockaddr_in serverAddr;
 		serverAddr.sin_family = AF_INET;
@@ -497,16 +497,16 @@ Client::recvTrackerResponse()
 
   TrackerResponse trackerResponse;
   trackerResponse.decode(dict);
-  m_peers = trackerResponse.getPeers();
-  //const std::vector<PeerInfo>& 
+  const std::vector<PeerInfo>& peers = trackerResponse.getPeers();
+ 
   m_interval = trackerResponse.getInterval();
 
-  //if (m_isFirstRes) {
-  //  for (const auto& peer : peers) {
-  //    //std::cout << peer.ip << ":" << peer.port << std::endl;
-		//m_peers.push_back(peer);
-  //  }
-  //}
+  if (m_isFirstRes) {
+    for (const auto& peer : peers) {
+      //std::cout << peer.ip << ":" << peer.port << std::endl;
+		m_peers.push_back(peer);
+    }
+  }
 
   m_isFirstRes = false;
 }
