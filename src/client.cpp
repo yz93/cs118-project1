@@ -20,7 +20,7 @@
  */
 
 #include "client.hpp"
-#include "util\buffer.hpp"
+#include "util/buffer.hpp"
 #include "msg/handshake.hpp"
 //#include "msg/handshake.cpp"
 #include "msg/msg-base.hpp"
@@ -74,6 +74,7 @@ Client::run()
     m_isFirstReq = false;
     recvTrackerResponse();  // now m_peers have a list of peers that have my requested file
 	connectPeers();
+	sendPeerRequest();
 	//download();
     close(m_trackerSock);
     sleep(m_interval);
