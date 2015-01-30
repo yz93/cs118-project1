@@ -23,6 +23,7 @@
 #define SBT_CLIENT_HPP
 
 #include "common.hpp"
+#include "tracker-response.hpp"
 #include <vector>
 #include "meta-info.hpp"
 //using namespace std;

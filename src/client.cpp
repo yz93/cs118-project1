@@ -51,10 +51,10 @@
 namespace sbt {
 
 Client::Client(const std::string& port, const std::string& torrent)
-  : m_interval(3600)
+  : m_id("SIMPLEBT-TEST-PEERID")
+  , m_interval(3600)
   , m_isFirstReq(true)
   , m_isFirstRes(true)
-  , m_id("SIMPLEBT-TEST-PEERID")
 {
   srand(time(NULL));
 
@@ -68,7 +68,7 @@ Client::Client(const std::string& port, const std::string& torrent)
 void
 Client::run()
 {
-  while (true) {
+//  while (true) {
     connectTracker();
     sendTrackerRequest();
     m_isFirstReq = false;
@@ -78,7 +78,7 @@ Client::run()
 	//download();
     close(m_trackerSock);
     sleep(m_interval);
-  }
+//  }
 }
 
 /*used by download()*/
@@ -86,6 +86,8 @@ void Client::connectPeers()
 {
 	for (auto peer : m_peers)
 	{
+		if (peer.port == m_clientPort)
+			continue;
 		int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 		m_client_socketFd.push_back(sockfd);
 
@@ -106,16 +108,18 @@ void Client::connectPeers()
 void Client::sendPeerRequest()
 {
 	std::string fileName = m_metaInfo.getName();
+	fileName +="Zhao";
 	// first create a file using the file name from the meta info file
-	std::ofstream myFile;
-	myFile.open(fileName);
+	std::ofstream myFile("testZhao.txt",std::ios::app);
+	
+	//myFile.open(fileName.c_str());
 
 	for (auto fd : m_client_socketFd)
 	{
 		// send and receive hand shake
-		msg::HandShake hsA(m_metaInfo.getHash(), m_id);
+		msg::HandShake hsA(m_metaInfo.getHash(), "SIMPLEBT-TEST-PEERID");
 		ConstBufferPtr t = hsA.encode();
-		send(fd, t.get(), (*t).size(), 0);
+		send(fd, t->get(), t->size(), 0);
 		char buf[68] = { 0 };
 		//memset(buf, '\0', sizeof(buf));
 		//memcpy(buf, lastTree, 3);
@@ -131,7 +135,9 @@ void Client::sendPeerRequest()
 
 		msg::HandShake hsB;
 		hsB.decode(tt);
-
+		std::ofstream out("handshake");
+		out<<hsB.getInfoHash()->buf()<<std::endl;
+		out.close();
 		// now calculate how many bytes are needed for the bit field
 		// send and receive bit field
 		int fileLen = m_metaInfo.getLength();
@@ -141,19 +147,23 @@ void Client::sendPeerRequest()
 			numPieces = fileLen / pieceLen;
 		else
 			numPieces = (fileLen / pieceLen) + 1;
+		int numBytes=0;
+		if (numPieces%8 == 0)
+			numBytes = numPieces/8;
+		else
+			numBytes = (numPieces/8) + 1;
+		char* bitField = new char[numBytes];
 
-		char* bitField = new char[numPieces];
+		memset(bitField, '\0', numBytes);  // bitField is all zero because I have nothing
 
-		memset(bitField, '\0', numPieces);  // bitField is all zero because I have nothing
-
-		ConstBufferPtr ttt = make_shared<const Buffer>(bitField, numPieces);
+		ConstBufferPtr ttt = make_shared<const Buffer>(bitField, numBytes);
 		msg::Bitfield bf(ttt);
 		
 		ConstBufferPtr tttt = bf.encode();
-		send(fd, tttt.get(), (*tttt).size(), 0);
+		send(fd, tttt->get(), tttt->size(), 0);
 
-		char* buf2 = new char[numPieces];
-		ssize_t ress = recv(fd, buf2, numPieces, 0);
+		char* buf2 = new char[numBytes];
+		ssize_t ress = recv(fd, buf2, numBytes, 0);
 
 		if (ress == -1) {
 			perror("recv");
@@ -163,11 +173,11 @@ void Client::sendPeerRequest()
 		// send interest and receive unchoke messages
 		msg::Interested interestMsg;
 		ConstBufferPtr q = interestMsg.encode();
-		send(fd, q.get(), (*q).size(), 0);
+		send(fd, q->get(), q->size(), 0);
 		//because interest msg is only 1-byte long
-		char buf3[1] = { 0 };
+		char buf3[2048] = { 0 };
 
-		ssize_t rees = recv(fd, buf3, 1, 0);  // receives unchoke message
+		ssize_t rees = recv(fd, buf3, 2048, 0);  // receives unchoke message
 
 		if (rees == -1) {
 			perror("recv");
@@ -182,24 +192,30 @@ void Client::sendPeerRequest()
 		char* data = new char[pieceLen];
 		for (int i = 0; i < numPieces; ++i)
 		{
+			myFile<<std::endl<<"piece count: "<<i<<std::endl;
 			memset(data, '\0', pieceLen);
 			// send 1st request msg
 			msg::Request req(i,0,pieceLen);
 			ConstBufferPtr d = req.encode();
-			send(fd, d.get(), (*d).size(), 0);
+			send(fd, d->get(), d->size(), 0);
 			recv(fd, data, pieceLen, 0);
 
 			ConstBufferPtr ttttt = make_shared<const Buffer>(data, pieceLen);
 
 			msg::Piece piece;
 			piece.decode(ttttt);
-			piece.getBlock();
+			//piece.getBlock();
 			myFile << piece.getBlock()->buf(); 
+			
+			
 		}
 		myFile.close();
 		delete[] buf2;
 		delete[] bitField;
 		delete[] data;
+		buf2 = nullptr;
+		bitField = nullptr;
+		data = nullptr;
 	}
 	
 }
@@ -497,16 +513,17 @@ Client::recvTrackerResponse()
 
   TrackerResponse trackerResponse;
   trackerResponse.decode(dict);
-  const std::vector<PeerInfo>& peers = trackerResponse.getPeers();
+  //  const std::vector<PeerInfo>&
+  m_peers = trackerResponse.getPeers();
  
   m_interval = trackerResponse.getInterval();
 
-  if (m_isFirstRes) {
-    for (const auto& peer : peers) {
+//  if (m_isFirstRes) {
+  //  for (const auto& peer : peers) {
       //std::cout << peer.ip << ":" << peer.port << std::endl;
-		m_peers.push_back(peer);
-    }
-  }
+//		m_peers.push_back(peer);
+  //  }
+//  }
 
   m_isFirstRes = false;
 }
