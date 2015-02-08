@@ -23,7 +23,9 @@
 #define SBT_CLIENT_HPP
 
 #include "common.hpp"
+#include <vector>
 #include "meta-info.hpp"
+//using namespace std;
 
 namespace sbt {
 
@@ -75,8 +77,21 @@ private:
   void
   recvTrackerResponse();
 
+  void download();
+  
+  /*used by download()*/
+  void connectPeers();
+
+  void sendPeerRequest();
+
+  void recvPeerResponse();
+
 private:
   MetaInfo m_metaInfo;
+  std::string m_id;
+  std::vector<PeerInfo> m_peers;
+  std::vector<int> m_client_socketFd;
+
   std::string m_trackerHost;
   std::string m_trackerPort;
   std::string m_trackerFile;
