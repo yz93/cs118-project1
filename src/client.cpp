@@ -192,7 +192,7 @@ void Client::sendPeerRequest()
 		char* data = new char[pieceLen];
 		for (int i = 0; i < numPieces; ++i)
 		{
-			myFile<<std::endl<<"piece count: "<<i<<std::endl;
+			//myFile<<std::endl<<"piece count: "<<i<<std::endl;
 			memset(data, '\0', pieceLen);
 			// send 1st request msg
 			msg::Request req(i,0,pieceLen);
@@ -207,7 +207,10 @@ void Client::sendPeerRequest()
 			//piece.getBlock();
 			myFile << piece.getBlock()->buf(); 
 			
-			
+			msg::Have haveMsg(i);
+			ConstBufferPtr whatever = haveMsg.encode();
+			send(fd, whatever->get(),whatever->size(),0);
+
 		}
 		myFile.close();
 		delete[] buf2;
