@@ -189,11 +189,13 @@ void Client::sendPeerRequest()
 
 		// now assume the peer has every single piece
 		// so I just keep sending request from 0 to the last piece
-		char* data = new char[pieceLen];
+		
 		for (int i = 0; i < numPieces; ++i)
 		{
+			char* data = new char[pieceLen];
 			//myFile<<std::endl<<"piece count: "<<i<<std::endl;
 			memset(data, '\0', pieceLen);
+			
 			// send 1st request msg
 			msg::Request req(i,0,pieceLen);
 			ConstBufferPtr d = req.encode();
@@ -210,7 +212,7 @@ void Client::sendPeerRequest()
 			msg::Have haveMsg(i);
 			ConstBufferPtr whatever = haveMsg.encode();
 			send(fd, whatever->get(),whatever->size(),0);
-
+			delete[] data;
 		}
 		myFile.close();
 		delete[] buf2;
