@@ -49,9 +49,9 @@
 #include <sys/select.h>
 #include <sstream>
 
-int maxSockfd = 0;
-fd_set readFds;
-fd_set tmpFds;
+
+
+//fd_set tmpFds;
 
 namespace sbt {
 
@@ -60,6 +60,7 @@ Client::Client(const std::string& port, const std::string& torrent)
   , m_interval(3600)
   , m_uploaded(0)
   , m_downloaded(0)
+  , m_maxSockfd(0)
   , m_isFirstReq(true)
   , m_isFirstRes(true)
 {
@@ -122,7 +123,7 @@ Client::Client(const std::string& port, const std::string& torrent)
 void
 Client::run()
 {
-	while (true) {
+	//while (true) {
 	//connectTracker();
 	//sendTrackerRequest();
 	//m_isFirstReq = false;
@@ -134,7 +135,7 @@ Client::run()
 	//download();
     //close(m_trackerSock);
     //sleep(m_interval);
-  }
+  //}
 }
 
 int Client::downloadAndUpload()
@@ -148,16 +149,16 @@ int Client::downloadAndUpload()
 	connectPeers();
 
 	//int maxSockfd = 0;
-
-	FD_ZERO(&readFds);
-	FD_ZERO(&tmpFds);
+	//fd_set readFds;
+	//FD_ZERO(&readFds);
+	//FD_ZERO(&m_readSocks);
 
 	// create a socket using TCP IP
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	maxSockfd = sockfd;
+	m_maxSockfd = sockfd;
 
 	// put the socket in the socket set
-	FD_SET(sockfd, &tmpFds);
+	FD_SET(sockfd, &m_readSocks);
 
 	// allow others to reuse the address
 	int yes = 1;
@@ -190,7 +191,9 @@ int Client::downloadAndUpload()
 	uint64_t expectedTimeOut = time(nullptr) + m_interval;  // time() gets current time
 
 	while (true) {
-		readFds = tmpFds;
+		fd_set tmpFds;
+		FD_ZERO(&tmpFds);
+		tmpFds = m_readSocks;
 
 		/*get current time; update timer*/
 		if (expectedTimeOut - time(nullptr) < 0)
@@ -205,7 +208,7 @@ int Client::downloadAndUpload()
 		}
 		tv.tv_sec = expectedTimeOut - time(nullptr);
 		// set up watcher
-		int returnVal = select(maxSockfd + 1, &readFds, NULL, NULL, &tv);
+		int returnVal = select(m_maxSockfd + 1, &tmpFds, NULL, NULL, &tv);
 		if (returnVal == -1) {
 			perror("select");
 			return 4;
@@ -223,9 +226,9 @@ int Client::downloadAndUpload()
 		}
 		else
 		{
-			for (int fd = 0; fd <= maxSockfd; fd++) {
+			for (int fd = 0; fd <= m_maxSockfd; fd++) {
 				// get one socket for reading
-				if (FD_ISSET(fd, &readFds)) {
+				if (FD_ISSET(fd, &tmpFds)) {
 					if (fd == sockfd) { // this is the listen socket
 						struct sockaddr_in clientAddr;
 						socklen_t clientAddrSize;
@@ -241,11 +244,11 @@ int Client::downloadAndUpload()
 						m_peerConnections[clientSockfd] = newConn;
 
 						// update maxSockfd
-						if (maxSockfd < clientSockfd)
-							maxSockfd = clientSockfd;
+						if (m_maxSockfd < clientSockfd)
+							m_maxSockfd = clientSockfd;
 
 						// add the socket into the socket set
-						FD_SET(clientSockfd, &tmpFds);
+						FD_SET(clientSockfd, &m_readSocks);
 					}
 					else { // this is the normal socket
 						PeerConnection peerConn = m_peerConnections[fd];
@@ -447,8 +450,9 @@ void Client::connectPeers()
 		if (std::find(m_peerIdList.begin(), m_peerIdList.end(), peer.peerId) == m_peerIdList.end())
 		{
 			int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-			maxSockfd = sockfd;
-			FD_SET(sockfd, &tmpFds);
+			if (m_maxSockfd<sockfd)
+				m_maxSockfd = sockfd;
+			FD_SET(sockfd, &m_readSocks);
 			m_client_socketFd.push_back(sockfd);
 
 			struct sockaddr_in serverAddr;
@@ -740,7 +744,7 @@ Client::connectTracker()
 {
   m_trackerSock = socket(AF_INET, SOCK_STREAM, 0);
 
-  maxSockfd = m_trackerSock;
+  //maxSockfd = m_trackerSock;
 
   struct addrinfo hints;
   struct addrinfo* res;

@@ -140,6 +140,7 @@ private:
   int m_serverSock = -1;
 
   fd_set m_readSocks;
+  int m_maxSockfd;
 
   uint64_t m_interval;
   bool m_isFirstReq;
