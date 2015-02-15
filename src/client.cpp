@@ -55,10 +55,10 @@ namespace sbt {
 Client::Client(const std::string& port, const std::string& torrent)
   : m_id("SIMPLEBT.TEST.PEERID")
   , m_interval(3600)
-  , m_isFirstReq(true)
-  , m_isFirstRes(true)
   , m_uploaded(0)
   , m_downloaded(0)
+  , m_isFirstReq(true)
+  , m_isFirstRes(true)
 {
   srand(time(NULL));
 
@@ -119,12 +119,12 @@ Client::Client(const std::string& port, const std::string& torrent)
 void
 Client::run()
 {
+	while (true) {
 	connectTracker();
 	sendTrackerRequest();
 	m_isFirstReq = false;
 	recvTrackerResponse();
-  while (true) {
-      // now m_peers have a list of peers that have my requested file
+    // now m_peers have a list of peers that have my requested file
 	connectPeers();
 	downloadAndUpload();
 	//sendPeerRequest();
@@ -298,6 +298,7 @@ int Client::downloadAndUpload()
 								haveMsg.decode(hptr);
 								uint32_t newIndex = haveMsg.getIndex();
 								peerConn.setOneBit(newIndex);  //update peer bitfield
+								m_uploaded += m_pieceLen;
 								break; 
 							}
 							case 5: // bitfield
@@ -354,8 +355,8 @@ int Client::downloadAndUpload()
 								{
 									if (checkPieceHash(piece)){  // check hash
 										uint32_t pieceOffset = piece.getBegin();
-										std::ofstream out(m_metaInfo.getName(), std::ofstream::binary);
-										std::ofstream test_out(m_metaInfo.getName() + "Zhao", std::ofstream::binary);
+										std::ofstream out(m_metaInfo.getName(), std::ofstream::binary | std::ofstream::app);
+										std::ofstream test_out(m_metaInfo.getName() + "Zhao", std::ofstream::binary | std::ofstream::app);
 										out.seekp(pieceIndex*m_pieceLen + pieceOffset);
 										test_out.seekp(pieceIndex*m_pieceLen + pieceOffset);
 										ConstBufferPtr anotherBuf = piece.getBlock();
@@ -364,6 +365,7 @@ int Client::downloadAndUpload()
 										out.close();
 										test_out.close();
 										m_bitfield[pieceIndex] = 1;  // update my bitfield
+										m_left -= anotherBuf->size();
 										sendHave(fd, pieceIndex);  // if piece is good, send have_msg.
 									}
 								}
