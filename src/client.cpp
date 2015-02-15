@@ -49,6 +49,9 @@
 #include <sys/select.h>
 #include <sstream>
 
+int maxSockfd = 0;
+fd_set readFds;
+fd_set tmpFds;
 
 namespace sbt {
 
@@ -120,26 +123,32 @@ void
 Client::run()
 {
 	while (true) {
-	connectTracker();
-	sendTrackerRequest();
-	m_isFirstReq = false;
-	recvTrackerResponse();
-    // now m_peers have a list of peers that have my requested file
-	connectPeers();
+	//connectTracker();
+	//sendTrackerRequest();
+	//m_isFirstReq = false;
+	//recvTrackerResponse();
+ //   // now m_peers have a list of peers that have my requested file
+	//connectPeers();
 	downloadAndUpload();
 	//sendPeerRequest();
 	//download();
-    close(m_trackerSock);
+    //close(m_trackerSock);
     //sleep(m_interval);
   }
 }
 
 int Client::downloadAndUpload()
 {
-	int maxSockfd = 0;
+	connectTracker();
+	sendTrackerRequest();
+	m_isFirstReq = false;
+	recvTrackerResponse();
+	close(m_trackerSock);
+	// now m_peers have a list of peers that have my requested file
+	connectPeers();
 
-	fd_set readFds;
-	fd_set tmpFds;
+	//int maxSockfd = 0;
+
 	FD_ZERO(&readFds);
 	FD_ZERO(&tmpFds);
 
@@ -190,6 +199,7 @@ int Client::downloadAndUpload()
 			sendTrackerRequest();
 			m_isFirstReq = false;
 			recvTrackerResponse();
+			close(m_trackerSock);
 			connectPeers();
 			expectedTimeOut = time(nullptr) + m_interval;
 		}
@@ -207,6 +217,7 @@ int Client::downloadAndUpload()
 			sendTrackerRequest();
 			m_isFirstReq = false;
 			recvTrackerResponse();
+			close(m_trackerSock);
 			connectPeers();
 			expectedTimeOut = time(nullptr) + m_interval;
 		}
@@ -436,6 +447,8 @@ void Client::connectPeers()
 		if (std::find(m_peerIdList.begin(), m_peerIdList.end(), peer.peerId) == m_peerIdList.end())
 		{
 			int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+			maxSockfd = sockfd;
+			FD_SET(sockfd, &tmpFds);
 			m_client_socketFd.push_back(sockfd);
 
 			struct sockaddr_in serverAddr;
@@ -726,6 +739,8 @@ void
 Client::connectTracker()
 {
   m_trackerSock = socket(AF_INET, SOCK_STREAM, 0);
+
+  maxSockfd = m_trackerSock;
 
   struct addrinfo hints;
   struct addrinfo* res;
