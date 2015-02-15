@@ -270,16 +270,20 @@ int Client::downloadAndUpload()
 							switch (msgId)
 							{
 							case 1:  // unchoke
+							{
 								char buf2[1] = { 0 };
 								recv(fd, buf2, 1, 0);  // // unchoke is not special so do not need any processing; unchoke msg is one-byte long
 								sendRequest(fd);  // inputs should be index wanted (need to check bitfield of peer to see availability)
 								// setLastReq() and m_requestSent done in sendRequest()
-								break;
+								break; 
+							}
 							case 2:  // interested
+							{
 								char buf3[1] = { 0 };
 								recv(fd, buf3, 1, 0);  // // interested is not special so do not need any processing; interested msg is one-byte long
 								sendUnchoke(fd);
 								break;
+							}
 							case 4:  // have
 							{
 								char buf4[4] = { 0 };
