@@ -487,17 +487,6 @@ Client::sendInterested(const int& fd){
 	send(fd, q->get(), q->size(), 0);
 }
 
-void
-Client::sendBitfield(const int& fd){
-	char* bitField = new char[m_numBytes];
-	vectorToBitfield(m_bitfield, bitField);  // assume this function works
-	ConstBufferPtr ttt = make_shared<const Buffer>(bitField, m_numBytes);
-	msg::Bitfield bf(ttt);
-			
-	ConstBufferPtr tttt = bf.encode();
-	send(fd, tttt->get(), tttt->size(), 0);
-}
-
 void 
 Client::vectorToBitfield(const std::vector<uint8_t>& bitFieldVec, char* cPtr)
 {
@@ -543,37 +532,15 @@ void Client::sendHandshake(const int& fd)
 	send(fd, t->get(), t->size(), 0);
 }
 
-void Client::receiveHandshake()
-{
-	char buf[68] = { 0 };
-	
-	ssize_t res = recv(fd, buf, 68, 0);
-			
-	if (res == -1) {
-		perror("recv");
-		return;
-	}
-	
-	ConstBufferPtr tt = make_shared<const Buffer>(buf, 68);
-	
-	msg::HandShake hsB;
-	hsB.decode(tt);
-}
+void
+Client::sendBitfield(const int& fd){
+	char* bitField = new char[m_numBytes];
+	vectorToBitfield(m_bitfield, bitField);  // assume this function works
+	ConstBufferPtr ttt = make_shared<const Buffer>(bitField, m_numBytes);
+	msg::Bitfield bf(ttt);
 
-void Client::sendBitfield(const int& fd)
-{
-	uint8_t* bitField = new uint8_t[m_numBytes];
-	
-	memset(bitField, '\0', m_numBytes);  // bitField is all zero because I have nothing
-	
-	for (int i = 0; i < m_numBytes; ++i)  // m_bitField should have been initialized and properly updated whenever a verified download happens
-		bitField[i] = m_bitfield[i];
-
-	ConstBufferPtr t = make_shared<const Buffer>(bitField, m_numBytes);
-	msg::Bitfield bf(t);
-			
-	ConstBufferPtr tt = bf.encode();
-	send(fd, tt->get(), tt->size(), 0);
+	ConstBufferPtr tttt = bf.encode();
+	send(fd, tttt->get(), tttt->size(), 0);
 }
 
 //void Client::sendPeerRequest()
