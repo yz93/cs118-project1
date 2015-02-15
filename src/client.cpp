@@ -134,7 +134,7 @@ Client::run()
   }
 }
 
-void Client::downloadAndUpload()
+int Client::downloadAndUpload()
 {
 	int maxSockfd = 0;
 
@@ -251,7 +251,7 @@ void Client::downloadAndUpload()
 							if (peerConn.getInitiated())  // if i first sent a handshake, now I need to send a bitfield
 								sendBitfield(fd);
 							else
-								sendHandshake();
+								sendHandshake(fd);
 							peerConn.setNotWaitingHS();
 						}
 						else  // not a handshake
@@ -372,6 +372,7 @@ void Client::downloadAndUpload()
 			}
 		}
 	}
+	return 0;
 }
 
 void

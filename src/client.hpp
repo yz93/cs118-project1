@@ -81,7 +81,7 @@ private:
   void
   recvTrackerResponse();
 
-  void downloadAndUpload();
+  int downloadAndUpload();
 
   void sendHandshake(const int& fd);
 
