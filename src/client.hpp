@@ -24,8 +24,11 @@
 
 #include "common.hpp"
 #include "tracker-response.hpp"
+#include "peerConnection.hpp"
+#include "msg/msg-base.hpp"
 #include <vector>
 #include "meta-info.hpp"
+#include <unordered_map>
 //using namespace std;
 
 namespace sbt {
@@ -78,20 +81,54 @@ private:
   void
   recvTrackerResponse();
 
-  void download();
+  void downloadAndUpload();
+
+  void sendHandshake(const int& fd);
+
+  void sendBitfield(const int& fd);
+
+  void receiveBitfield();
+
+  void sendInterested(const int& fd);
+
+  void sendUnchoke(const int& fd);
+
+  void sendRequest(const int& fd);
+
+  void sendPiece(const int& fd, const int& index, const int& offset, const int& length);
+
+  void sendHave(const int& fd, const int& index);
   
-  /*used by download()*/
   void connectPeers();
 
-  void sendPeerRequest();
+  void vectorToBitfield(const std::vector<uint8_t>& bitFieldVec, char* cPtr);
 
-  void recvPeerResponse();
+  std::vector<int> bitfieldToVector(ConstBufferPtr bitfield);
+  
+  bool checkPieceHash(const msg::Piece& piece);
+
+  //void sendPeerRequest();
+
+  //void recvPeerResponse();
 
 private:
   MetaInfo m_metaInfo;
   std::string m_id;
   std::vector<PeerInfo> m_peers;
+  std::vector<std::string> m_peerIdList;  // also connection list, by peer id
   std::vector<int> m_client_socketFd;
+  std::vector<uint8_t> m_bitfield;
+  std::vector<std::string> m_hashPieces;
+  std::vector<bool> m_requestSent;
+  std::unordered_map<int, PeerConnection> m_peerConnections;  // connection list, by fd
+  int m_fileLen;
+  int m_pieceLen;
+  int m_numPieces;
+  int m_numBytes;
+  int m_uploaded;
+  int m_downloaded;
+  int m_left;
+
 
   std::string m_trackerHost;
   std::string m_trackerPort;
@@ -107,6 +144,7 @@ private:
   uint64_t m_interval;
   bool m_isFirstReq;
   bool m_isFirstRes;
+
 };
 
 } // namespace sbt
