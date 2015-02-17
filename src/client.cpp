@@ -56,24 +56,35 @@
 namespace sbt {
 
 Client::Client(const std::string& port, const std::string& torrent)
-  : m_id("SIMPLEBT.TEST.PEERID")
-  , m_interval(3600)
-  , m_uploaded(0)
-  , m_downloaded(0)
-  , m_maxSockfd(0)
-  , m_isFirstReq(true)
-  , m_isFirstRes(true)
+	: m_id("SIMPLEBT.TEST.PEERID")
+	, m_uploaded(0)
+	, m_downloaded(0)
+	, m_maxSockfd(0)
+	, m_interval(3600)
+	, m_isFirstReq(true)
+	, m_isFirstRes(true)
+	, lastSent(-1)
+	, nextSend(0)
 {
+	loadMetaInfo(torrent);
+	FD_ZERO(&m_readSocks);
+	std::ofstream outTest("outTest");
+	//outTest.close();
+
   srand(time(NULL));
 
   m_peerIdList.push_back(m_id);
 
-  int fileLen = m_metaInfo.getLength();
+  int64_t fileLen = m_metaInfo.getLength();
   m_left = fileLen;
+
+  //std::ofstream outTest("outTest", std::ios::app);
+  outTest << "INITIALIZE FILELEN:  " <<fileLen<< std::endl;
+  outTest.close();
 
   m_clientPort = boost::lexical_cast<uint16_t>(port);
 
-  loadMetaInfo(torrent);
+  
 
   m_fileLen = m_metaInfo.getLength();
   m_pieceLen = m_metaInfo.getPieceLength();
@@ -88,21 +99,31 @@ Client::Client(const std::string& port, const std::string& torrent)
   else
 	  m_numBytes = (m_numPieces / 8) + 1;
 
-  std::ifstream in(m_metaInfo.getName());
+  std::ifstream in(m_metaInfo.getName(), std::ifstream::in);
   if (in){
 	  for (int i = 0; i < m_numPieces; ++i)
 		  m_bitfield.push_back(1);
 	  /*std::ofstream out(m_metaInfo.getName());
 	  out.close();*/
+	  std::ofstream outTest("outTest",std::ofstream::app);
+	  outTest << "checking file: already exists!" << std::endl;
+	  isUploadTest = true;
   }
-  else
+  else{
 	  for (int i = 0; i < m_numPieces; ++i)
 		  m_bitfield.push_back(0);
+	  std::ofstream out(m_metaInfo.getName(), std::ofstream::binary | std::ofstream::out);
+	  for (int i = 0; i < m_fileLen; ++i)
+		  out.put('a');
+	  //out.write("", 1);
+	  out.close();
+	  isUploadTest = false;
+  }
 
   // build a vector of hash strings with index starting at 0.
   // used after downloading a piece to check against the computed hash of that piece
   std::vector<uint8_t> tempVec = m_metaInfo.getPieces();
-  for (int i = 0; i < tempVec.size();)
+  for (size_t i = 0; i < tempVec.size();)
 	  for (int j = 0; j < 20; ++j)
 	  {
 		  std::string str = "";
@@ -113,9 +134,7 @@ Client::Client(const std::string& port, const std::string& torrent)
 	  }
 
   for (int i = 0; i < m_numPieces; ++i)
-  {
 	  m_requestSent.push_back(false);
-  }
 
   run();
 }
@@ -140,13 +159,37 @@ Client::run()
 
 int Client::downloadAndUpload()
 {
-	connectTracker();
+	if (isUploadTest)
+	{
+		connectTracker();
+		sendTrackerRequest();
+		m_isFirstReq = false;
+		recvTrackerResponse();
+		close(m_trackerSock);
+	}
+	else
+	{
+		connectTracker();
+		sendTrackerRequest();
+		m_isFirstReq = false;
+		recvTrackerResponse();
+		sleep(m_interval);
+		close(m_trackerSock);
+		connectTracker();
+		sendTrackerRequest();
+		m_isFirstReq = false;
+		recvTrackerResponse();
+		close(m_trackerSock);
+		connectPeers();
+	}
+	/*connectTracker();
 	sendTrackerRequest();
 	m_isFirstReq = false;
 	recvTrackerResponse();
-	close(m_trackerSock);
+	close(m_trackerSock);*/
 	// now m_peers have a list of peers that have my requested file
-	connectPeers();
+	//if (!isUploadTest)
+	//	connectPeers();
 
 	//int maxSockfd = 0;
 	//fd_set readFds;
@@ -155,8 +198,11 @@ int Client::downloadAndUpload()
 
 	// create a socket using TCP IP
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	m_maxSockfd = sockfd;
-
+	if (m_maxSockfd<sockfd)
+		m_maxSockfd = sockfd;
+	std::ofstream outTest("outTest", std::ios::app);
+	outTest << "create listening Socket!!" << std::endl;
+	outTest.close();
 	// put the socket in the socket set
 	FD_SET(sockfd, &m_readSocks);
 
@@ -181,48 +227,65 @@ int Client::downloadAndUpload()
 	// set the socket in listen status
 	if (listen(sockfd, 10) == -1) {
 		perror("listen");
-		return 3;
+		//return 3;
 	}
 
 	// initialize timer
 	struct timeval tv;
 	tv.tv_sec = m_interval;
 	tv.tv_usec = 0;
-	uint64_t expectedTimeOut = time(nullptr) + m_interval;  // time() gets current time
-
+	//uint64_t expectedTimeOut = time(nullptr) + m_interval;  // time() gets current time
+	
 	while (true) {
 		fd_set tmpFds;
 		FD_ZERO(&tmpFds);
 		tmpFds = m_readSocks;
-
+		uint64_t expectedTimeOut = time(nullptr) + m_interval;  // time() gets current time
 		/*get current time; update timer*/
-		if (expectedTimeOut - time(nullptr) < 0)
+		/*if (expectedTimeOut - time(nullptr) < 0)
 		{
 			connectTracker();
 			sendTrackerRequest();
 			m_isFirstReq = false;
 			recvTrackerResponse();
 			close(m_trackerSock);
-			connectPeers();
+			std::ofstream outTest("outTest", std::ios::app);
+			outTest << "DEBUG!" << std::endl;
+			outTest.close();
+			if (!isUploadTest)
+				connectPeers();
 			expectedTimeOut = time(nullptr) + m_interval;
-		}
+		}*/
 		tv.tv_sec = expectedTimeOut - time(nullptr);
 		// set up watcher
 		int returnVal = select(m_maxSockfd + 1, &tmpFds, NULL, NULL, &tv);
+		//usleep(100);
 		if (returnVal == -1) {
 			perror("select");
-			return 4;
+			//return 4;
 		}
 
 		else if (returnVal == 0)
 		{
-			connectTracker();
-			sendTrackerRequest();
-			m_isFirstReq = false;
-			recvTrackerResponse();
-			close(m_trackerSock);
-			connectPeers();
+			
+				connectTracker();
+				sendTrackerRequest();
+				m_isFirstReq = false;
+				recvTrackerResponse();
+				close(m_trackerSock);
+				if (!isUploadTest)
+					connectPeers();
+				
+			
 			expectedTimeOut = time(nullptr) + m_interval;
+			std::ofstream outTest("outTest", std::ios::app);
+			outTest << "M_INTERVAL IS: "<< m_interval << std::endl;
+			outTest << "TIMEOUT!" << std::endl;
+			//outTest.close();
+			if (!isUploadTest && m_left == 0)
+				return 0;
+			outTest << "TIMEOUT2!" << std::endl;
+			outTest.close();
 		}
 		else
 		{
@@ -232,12 +295,19 @@ int Client::downloadAndUpload()
 					if (fd == sockfd) { // this is the listen socket
 						struct sockaddr_in clientAddr;
 						socklen_t clientAddrSize;
+						std::ofstream outTest("outTest", std::ios::app);
+						outTest << "before accept!!" << std::endl;
+						//outTest.close();
 						// I can assume that if a peer already set up a connection with me, it would not try again
 						int clientSockfd = accept(fd, (struct sockaddr*)&clientAddr, &clientAddrSize);
 
+						//std::ofstream outTest("outTest", std::ios::app);
+						outTest << "accepted connection from peer!" << std::endl;
+						outTest.close();
+
 						if (clientSockfd == -1) {
 							perror("accept");
-							return 5;
+							//return 5;
 						}
 
 						PeerConnection newConn(clientSockfd, false, true);
@@ -251,33 +321,46 @@ int Client::downloadAndUpload()
 						FD_SET(clientSockfd, &m_readSocks);
 					}
 					else { // this is the normal socket
-						PeerConnection peerConn = m_peerConnections[fd];
-						if (peerConn.isWaitingHS())
+						//PeerConnection peerConn = m_peerConnections[fd];
+						if (m_peerConnections[fd].isWaitingHS())
 						{
 							char* buf = new char[68];
-							memset(buf, '\0', sizeof(buf));
+							memset(buf, '\0', 68);
 							if (recv(fd, buf, 68, 0) == -1) {
 								perror("recv");
 								return 6;
 							}
 							// convert received char* buffer to ConstBufferPtr so I can extract the id (type) of the message
-							ConstBufferPtr recvData = make_shared<const Buffer>(buf, sizeof(buf));
-							if (peerConn.getInitiated())  // if i first sent a handshake, now I need to send a bitfield
+							ConstBufferPtr recvData = make_shared<const Buffer>(buf, 68);
+							if (m_peerConnections[fd].getInitiated())  // if i first sent a handshake, now I need to send a bitfield
+							{
 								sendBitfield(fd);
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "sent bitfield" << std::endl;
+								outTest.close();
+							}
 							else
+							{
 								sendHandshake(fd);
-							peerConn.setNotWaitingHS();
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "sent handshake" << std::endl;
+								outTest.close();
+							}
+							m_peerConnections[fd].setNotWaitingHS();
 						}
 						else  // not a handshake
 						{
 							char* buf = new char[5];  // read first 5 bytes to determine length and id
-							memset(buf, '\0', sizeof(buf));
+							memset(buf, '\0', 5);
 							if (recv(fd, buf, 5, 0) == -1) {
 								perror("recv");
 								return 6;
 							}
+							std::ofstream outTest("outTest", std::ios::app);
+							outTest << "receive first bitfield" << std::endl;
+							outTest.close();
 							// convert received char* buffer to ConstBufferPtr so I can extract the id (type) of the message
-							ConstBufferPtr recvData = make_shared<const Buffer>(buf, sizeof(buf));
+							ConstBufferPtr recvData = make_shared<const Buffer>(buf, 5);
 							const uint32_t* value = reinterpret_cast<const uint32_t*>(recvData->buf());
 							uint32_t len = ntohl(*value);
 							uint8_t msgId = (*recvData)[4];  // ID_OFFSET
@@ -285,17 +368,24 @@ int Client::downloadAndUpload()
 							{
 							case 1:  // unchoke
 							{
-								char buf2[1] = { 0 };
-								recv(fd, buf2, 1, 0);  // // unchoke is not special so do not need any processing; unchoke msg is one-byte long
-								sendRequest(fd);  // inputs should be index wanted (need to check bitfield of peer to see availability)
+								/*char buf2[1] = { 0 };
+								recv(fd, buf2, 1, 0);*/  // // unchoke is not special so do not need any processing; unchoke msg is one-byte long
+								sendRequest(fd, nextSend);  // inputs should be index wanted (need to check bitfield of peer to see availability)
 								// setLastReq() and m_requestSent done in sendRequest()
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "sent request" << std::endl;
+								outTest.close();
 								break; 
 							}
 							case 2:  // interested
 							{
-								char buf3[1] = { 0 };
-								recv(fd, buf3, 1, 0);  // // interested is not special so do not need any processing; interested msg is one-byte long
+								/*char buf3[1] = { 0 };
+								recv(fd, buf3, 1, 0);*/  // // interested is not special so do not need any processing; interested msg is one-byte long
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "RECEIVE INTEREST" << std::endl;
+								
 								sendUnchoke(fd);
+								outTest << "UNCHOKE SENT" << std::endl;
 								break;
 							}
 							case 4:  // have
@@ -311,24 +401,49 @@ int Client::downloadAndUpload()
 								msg::Have haveMsg;
 								haveMsg.decode(hptr);
 								uint32_t newIndex = haveMsg.getIndex();
-								peerConn.setOneBit(newIndex);  //update peer bitfield
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "received HAVE, Index is: " << newIndex << std::endl;
+								//m_peerConnections[fd].setOneBit((int)newIndex);  //update peer bitfield
+								outTest << "AFTER SETONEBIT" << std::endl;
 								m_uploaded += m_pieceLen;
 								break; 
 							}
 							case 5: // bitfield
 							{
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "bitfield received" << std::endl;
+								outTest.close();
 								char * newBuf = new char[m_numBytes];
 								memset(newBuf, 0, m_numBytes);
 								recv(fd, newBuf, m_numBytes, 0);
 								ConstBufferPtr ttt = make_shared<const Buffer>(newBuf, m_numBytes);  // should be constbufferptr bitfield
 								// initialize the peer's bitfield
-								peerConn.setPeerBitfield(ttt, m_numPieces);
-								if (peerConn.getInitiated())  //"I have initiated this socket connection (this socket is for downloading)"
+								//m_peerConnections[fd].setPeerBitfield(ttt, m_numPieces);
+								if (m_peerConnections[fd].getInitiated())  //"I have initiated this socket connection (this socket is for downloading)"
 									// can compare fd with a list of fd's populated when I set up the connections to peers before the while loop
 									// assume I am always interested :p
+								{
 									sendInterested(fd);
+									std::ofstream outTest("outTest", std::ios::app);
+									outTest << "sent interested" << std::endl;
+									outTest.close();
+								}
 								else  // this socket is an uploader
-									sendBitfield(fd);
+
+								{
+									char* bitField = new char[m_numBytes];
+									//vectorToBitfield(m_bitfield, bitField);  // assume this function works
+									memset(bitField, -1, m_numBytes);
+									ConstBufferPtr ttt = make_shared<const Buffer>(bitField, m_numBytes);
+									msg::Bitfield bf(ttt);
+
+									ConstBufferPtr tttt = bf.encode();
+									send(fd, tttt->get(), tttt->size(), 0);
+									std::ofstream outTest("outTest", std::ios::app);
+									outTest << "sent bitfield as an uploader" << std::endl;
+									outTest.close();
+
+								}
 								break;
 							}
 							case 6:  // request
@@ -347,41 +462,111 @@ int Client::downloadAndUpload()
 								int ind = req.getIndex();
 								int off = req.getBegin();
 								int length = req.getLength();
+								std::ofstream outTest("outTest", std::ios::app);
+								outTest << "Req Param: index received is "<< ind << std::endl;
+								outTest << "Req Param: index received is " << off << std::endl;
+								outTest << "Req Param: index received is " << length << std::endl;
+								outTest.close();
 								sendPiece(fd, ind, off, length);  // when sending, check that I do have the requested piece. Then use index and offset to upload the correct data
+								
 								break; 
 							}
 							case 7:  //piece
 							{
 								char* tempBuff = new char[len - 1];  //it should be that len == m_pieceLen+9
-								memset(tempBuff, 0, len - 1);
+								memset(tempBuff, '\0', len - 1);
 								recv(fd, tempBuff, len - 1, 0);  // receive block and index and offset
 								char * totalBuf2 = new char[5 + len - 1];  // concatentate with length
 								for (int k = 0; k < 5; ++k)
 									totalBuf2[k] = buf[k];
-								for (int k = 5; k < 5 + len - 1; ++k)
+								for (unsigned int k = 5; k < 5 + len - 1; ++k)
 									totalBuf2[k] = tempBuff[k - 5];
 								ConstBufferPtr ttttt = make_shared<const Buffer>(totalBuf2, len - 1 + 5);
 								//myFile2<<"debugging seg fault: "<<"check 7"<<std::endl;
 								msg::Piece piece;
 								piece.decode(ttttt);  // now piece is ready to be checked
 								uint32_t pieceIndex = piece.getIndex();
-								if (peerConn.getLastReq() == pieceIndex)  // check the index is the one I requested
+								if (m_peerConnections[fd].getLastReq() == pieceIndex && checkPieceHash(piece))  // check the index is the one I requested
 								{
-									if (checkPieceHash(piece)){  // check hash
-										uint32_t pieceOffset = piece.getBegin();
-										std::ofstream out(m_metaInfo.getName(), std::ofstream::binary | std::ofstream::app);
-										std::ofstream test_out(m_metaInfo.getName() + "Zhao", std::ofstream::binary | std::ofstream::app);
-										out.seekp(pieceIndex*m_pieceLen + pieceOffset);
-										test_out.seekp(pieceIndex*m_pieceLen + pieceOffset);
-										ConstBufferPtr anotherBuf = piece.getBlock();
-										out.write((char*)(anotherBuf->buf()), anotherBuf->size());
-										test_out.write((char*)(anotherBuf->buf()), anotherBuf->size());
-										out.close();
-										test_out.close();
-										m_bitfield[pieceIndex] = 1;  // update my bitfield
-										m_left -= anotherBuf->size();
-										sendHave(fd, pieceIndex);  // if piece is good, send have_msg.
+									uint32_t pieceOffset = piece.getBegin();
+									std::fstream out(m_metaInfo.getName(), std::ofstream::binary | std::ofstream::in | std::ofstream::out);
+									std::fstream test_out(m_metaInfo.getName() + "Zhao", std::ofstream::binary | std::ofstream::in | std::ofstream::out);
+									out.seekp(pieceIndex*m_pieceLen + pieceOffset, std::ios::beg);
+									test_out.seekp(pieceIndex*m_pieceLen + pieceOffset, std::ios::beg);
+									ConstBufferPtr anotherBuf = piece.getBlock();
+									//const char* write_buf = reinterpret_cast<const char*>(anotherBuf->buf());
+									//if (pieceIndex == 22)
+									//{
+									//	out.write((char*)(anotherBuf->buf()), anotherBuf->size());  // - 282m_fileLen%m_pieceLen
+									//	test_out.write((char*)(anotherBuf->buf()), anotherBuf->size());  //m_fileLen % m_numPieces  - 282
+									//} //strlen((const char*)anotherBuf->buf())
+									//else
+									//{
+									/*std::stringstream ss;
+									ss << pieceIndex;
+									std::string tr = ss.str();
+									out.write(tr.c_str(),sizeof(tr));*/
+									out.write((char*)(anotherBuf->buf()), anotherBuf->size());
+									test_out.write((char*)(anotherBuf->buf()), anotherBuf->size());
+									//out.seekp(0, std::ios::beg);
+									//test_out.seekp(0, std::ios::beg);
+									//}
+									out.close();
+									test_out.close();
+									m_bitfield[pieceIndex] = 1;  // update my bitfield
+									std::ofstream outTest("outTest", std::ios::app);
+									
+									for (size_t y = 0; y < m_client_socketFd.size(); ++y)
+									{
+										sendHave(m_client_socketFd[y], pieceIndex);  // if piece is good, send have_msg.
 									}
+
+									outTest << "sent have" << std::endl;
+									
+									m_downloaded += anotherBuf->size();
+									m_left -= anotherBuf->size();
+									if (m_downloaded >= m_fileLen || m_left <= 0)
+									  {
+										m_downloaded = m_fileLen;
+										m_left = 0;
+										connectTracker();
+										sendTrackerRequest();
+										recvTrackerResponse();
+										close(m_trackerSock);
+										std::ofstream outTest("outTest", std::ios::app);
+										outTest << "LAST REPORT" << std::endl;
+										outTest.close();
+									  }
+									
+									outTest << "DOWNLOADED:  " << m_downloaded << std::endl;
+
+								/*	
+									if (m_left <= 0)
+									{
+										m_left = 0;
+										connectTracker();
+										sendTrackerRequest();
+										recvTrackerResponse();
+										close(m_trackerSock);
+									}*/
+
+									outTest << "Left:  " << m_left << std::endl;
+									outTest.close();
+									
+									//if (lastFd!=fd)
+									sendRequest(fd, nextSend);
+									
+									/*else
+									{
+										sendRequest(diffFd, nextSend);
+										sendRequest(fd, nextSend);
+									}*/
+								}
+								else
+								{
+									m_requestSent[pieceIndex] = false;
+									--nextSend;
+									sendRequest(fd, pieceIndex);
 								}
 								break;
 							}
@@ -403,24 +588,41 @@ Client::sendHave(const int& fd, const int& index){
 }
 
 void
-Client::sendRequest(const int& fd)
+Client::sendRequest(int& fd, const int pIndex)
 {
 	PeerConnection pc = m_peerConnections[fd];
-	std::vector<int> pbf = pc.getBitfield();
-	for (int i = 0; i < m_bitfield.size();++i)
-		if (m_bitfield[i] == 0)
-			if (m_requestSent[i]==false)
-				if (pbf[i] == 1)
-				{
-					msg::Request req(i, 0, m_pieceLen);
-					//myFile2<<"debugging seg fault: "<<"check 3"<<std::endl;
-					ConstBufferPtr d = req.encode();
-					//myFile2<<"debugging seg fault: "<<"check 4"<<std::endl;
-					send(fd, d->get(), d->size(), 0);
-					m_peerConnections[fd].setLastReq(i);
-					m_uploaded += m_pieceLen;
-					m_requestSent[i] = true;
-				}
+	//std::vector<int> pbf = pc.getBitfield();
+	//for (size_t i = 0; i < m_bitfield.size();++i)
+	//	if (m_bitfield[i] == 0 && !m_requestSent[i])  //m_bitfield[i] == 0 && 
+	//	/*if (pbf[i] == 1)
+	//	{*/
+	//{
+		int temp;
+		if (pIndex == 22)
+			temp = m_fileLen % m_pieceLen;
+		else if (nextSend > 22)
+			return;
+		else
+			temp = m_pieceLen;
+
+		msg::Request req(pIndex, 0, temp);
+		//myFile2<<"debugging seg fault: "<<"check 3"<<std::endl;
+		ConstBufferPtr d = req.encode();
+		//myFile2<<"debugging seg fault: "<<"check 4"<<std::endl;
+		send(fd, d->get(), d->size(), 0);
+		m_peerConnections[fd].setLastReq(pIndex);
+		//m_uploaded += m_pieceLen;
+		m_requestSent[pIndex] = true;
+		lastSent = nextSend;
+		++nextSend;
+		lastFd = fd;
+		std::ofstream outTest("outTest", std::ios::app);
+		outTest << "request sent" << std::endl;
+		outTest.close();
+		//break;
+	//}
+	//else
+		//sleep(1);
 }
 // returns true if piece is good
 // returns false if piece is bad
@@ -431,14 +633,24 @@ bool Client::checkPieceHash(const msg::Piece& piece)
 
 	// should be 20 bytes of length, because a block is a piece
 	ConstBufferPtr hash = util::sha1(block);
-	std::string hashStr = "";
+//	std::vector<uint8_t> receivedHash = *hash;
+	/*for (int oo = 0; oo < hash->size(); ++oo)
+		receivedHash.push_back(hash->buf()[oo]);*/
+	/*std::string hashStr = "";
 	char* c = (char*)(hash->buf());
-	for (int i = 0; i < hash->size(); ++i){
+	for (size_t i = 0; i < hash->size(); ++i){
 			hashStr += *(c + i);
-	}
+	}*/
+//	std::vector<uint8_t> piece_hash;
+	std::vector<uint8_t> entirePiece = m_metaInfo.getPieces();
+//	for (size_t ii = index * 20; ii < (index * 20 + 20); ++ii)
+//		piece_hash.push_back(entirePiece[ii]);
 
-	return (hashStr == m_hashPieces[index]);
-
+	for (int cc = 0; cc < 20; ++cc)
+		if (entirePiece[index*20+cc] != hash->buf()[cc])
+			return false;
+	//return (hashStr == m_hashPieces[index]);
+	return true;
 }
 
 
@@ -467,11 +679,32 @@ void Client::connectPeers()
 				throw Error("Cannot connect to peer");
 			}
 
-			sendHandshake(sockfd);
+			if (!isUploadTest)
+			{
+				sendHandshake(sockfd);
+				PeerConnection newConn(sockfd, true, true, peer.peerId);
+				m_peerConnections[sockfd] = newConn;
+				m_peerIdList.push_back(peer.peerId);
+				std::ofstream outTest("outTest", std::ios::app);
+				outTest << "SENT HANDSHAKE" << std::endl;
+				outTest.close();
+			}
 
-			PeerConnection newConn(sockfd, true, true, peer.peerId);
-			m_peerConnections[sockfd] = newConn;
-			m_peerIdList.push_back(peer.peerId);
+			else
+			{
+				char* bufbuf = new char[68];
+				memset(bufbuf, '\0', 68);
+				if (recv(sockfd, bufbuf, 68, 0) == -1) {
+					perror("recv");
+				}
+				PeerConnection newConn(sockfd, false, false, peer.peerId);
+				m_peerConnections[sockfd] = newConn;
+				m_peerIdList.push_back(peer.peerId);
+				std::ofstream outTest("outTest", std::ios::app);
+				outTest << "upload connection set up" << std::endl;
+				outTest.close();
+				delete[] bufbuf;
+			}
 		}
 	}
 }
@@ -479,7 +712,7 @@ void Client::connectPeers()
 void
 Client::sendPiece(const int& fd, const int& index, const int& offset, const int& length)
 {
-	std::ifstream is(m_metaInfo.getName(), std::ifstream::binary);  // is the stream of the entire file
+	std::ifstream is(m_metaInfo.getName(), std::ifstream::binary | std::ifstream::in);  // is the stream of the entire file
 	if (is)
 	{
 		std::streampos pos = index*m_pieceLen + offset;
@@ -487,8 +720,12 @@ Client::sendPiece(const int& fd, const int& index, const int& offset, const int&
 		char * buffer = new char[length];
 		memset(buffer, 0, length);
 		is.read(buffer, length);
+		std::ofstream uploadTest("uploadTest", std::ios::app);
+		uploadTest << buffer << std::endl;
+		uploadTest.close();
 		ConstBufferPtr block = make_shared<const Buffer>(buffer, is.gcount());
-		
+		std::ofstream outTest("outTest", std::ios::app);
+		outTest << "SEND PIECE LENGTH:  " << is.gcount() << std::endl;
 		msg::Piece p(index, offset, block);
 		ConstBufferPtr ptr = p.encode();
 		send(fd, ptr->buf(), ptr->size(), 0);
@@ -785,7 +1022,8 @@ Client::sendTrackerRequest()
   param.setLeft(m_left); //TODO:
   if (m_isFirstReq)
     param.setEvent(TrackerRequestParam::STARTED);
-
+  else if (m_left==0)
+	param.setEvent(TrackerRequestParam::COMPLETED);
   // std::string path = m_trackerFile;
   std::string path = m_metaInfo.getAnnounce();
   path += param.encode();
@@ -869,7 +1107,7 @@ Client::recvTrackerResponse()
   }
 
   close(m_trackerSock);
-  FD_CLR(m_trackerSock, &m_readSocks);
+  //FD_CLR(m_trackerSock, &m_readSocks);
 
 
   bencoding::Dictionary dict;

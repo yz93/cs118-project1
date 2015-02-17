@@ -93,7 +93,7 @@ private:
 
   void sendUnchoke(const int& fd);
 
-  void sendRequest(const int& fd);
+  void sendRequest(int& fd, const int pIndex);
 
   void sendPiece(const int& fd, const int& index, const int& offset, const int& length);
 
@@ -121,13 +121,13 @@ private:
   std::vector<std::string> m_hashPieces;
   std::vector<bool> m_requestSent;
   std::unordered_map<int, PeerConnection> m_peerConnections;  // connection list, by fd
-  int m_fileLen;
-  int m_pieceLen;
+  int64_t m_fileLen;
+  int64_t m_pieceLen;
   int m_numPieces;
   int m_numBytes;
-  int m_uploaded;
-  int m_downloaded;
-  int m_left;
+  int64_t m_uploaded;
+  int64_t m_downloaded;
+  int64_t m_left;
 
 
   std::string m_trackerHost;
@@ -145,6 +145,10 @@ private:
   uint64_t m_interval;
   bool m_isFirstReq;
   bool m_isFirstRes;
+  bool isUploadTest;
+  int lastSent;
+  int nextSend;
+  int lastFd;
 
 };
 

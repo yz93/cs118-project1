@@ -35,10 +35,10 @@ namespace sbt {
 		}
 
 		void setLastReq(int index){
-			lastRequestedPiece = index;
+			lastRequestedPiece = (uint32_t)index;
 		}
 
-		int getLastReq(){
+		uint32_t getLastReq(){
 			return lastRequestedPiece;
 		}
 	private:
@@ -47,7 +47,7 @@ namespace sbt {
 		bool m_waitingForHandshake;
 		std::string m_peerId;  // remember who I am talking with
 		std::vector<int> peer_bitField;  // remembers what the other side has
-		int lastRequestedPiece;
+		uint32_t lastRequestedPiece;
 	};
 
 }// namespace sbt

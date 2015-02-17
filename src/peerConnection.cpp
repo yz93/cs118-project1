@@ -7,10 +7,24 @@
 namespace sbt{
 	PeerConnection::PeerConnection(int sockfd, bool initiated, bool waitingForHandshake)
 		: m_sockfd(sockfd), m_initiated(initiated), m_waitingForHandshake(waitingForHandshake), lastRequestedPiece(-1)
-	{}
+	{
+		if (m_initiated)
+			for (int i = 0; i < 24; ++i)
+				peer_bitField.push_back(1);
+		else
+			for (int i = 0; i < 24; ++i)
+				peer_bitField.push_back(0);
+	}
 	PeerConnection::PeerConnection(int sockfd, bool initiated, bool waitingForHandshake, std::string peerId)
 		: m_sockfd(sockfd), m_initiated(initiated), m_waitingForHandshake(waitingForHandshake), m_peerId(peerId), lastRequestedPiece(-1)
-	{}
+	{
+		if (m_initiated)
+			for (int i = 0; i < 24; ++i)
+				peer_bitField.push_back(1);
+		else
+			for (int i = 0; i < 24; ++i)
+				peer_bitField.push_back(0);
+	}
 
 	void PeerConnection::setPeerBitfield(const ConstBufferPtr& bitfield, int numPieces)
 	{
